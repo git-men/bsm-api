@@ -16,14 +16,14 @@ def save_api(config):
     return driver.save_api(config)
 
 
-def show_api(slug):
+def get_api_config(slug):
     driver = utils.get_api_driver()
     config = driver.get_api_config(slug)
     return config
 
 
 def get_api_po(slug):
-    config = show_api(slug)
+    config = get_api_config(slug)
     api = po.loadAPIFromConfig(config)
     return api
 

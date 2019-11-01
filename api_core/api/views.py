@@ -210,7 +210,6 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
 
     def api(self, request, *args, **kwargs):
         slug = kwargs.get('pk')
-        # api = Api.objects.filter(slug=slug).first()
         api = api_services.get_api_po(slug)
         if not api:
             raise exceptions.BusinessException(

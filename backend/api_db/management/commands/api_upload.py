@@ -26,9 +26,7 @@ class Command(BaseCommand):
         if app:
             export_apps = [app]
         else:
-            export_apps = getattr(settings, 'BSM_EXPORT_APPS', None) + getattr(
-                settings, 'INTERNAL_APPS', None
-            )
+            export_apps = getattr(settings, 'API_APPS', None)
             export_apps = list(set(export_apps))
 
         error_num = 0
@@ -55,6 +53,7 @@ class Command(BaseCommand):
                 #     print(f"{app}没有API_CONFIGS")
                 #     continue
                 print(f'-------------------开始上传 app：{app} 的api配置 ------------------')
+                slug_list = []
                 for config in api_config_list:
                     slug = ''
                     try:
@@ -63,11 +62,13 @@ class Command(BaseCommand):
                         success_num += 1
                         if is_change:
                             change_num += 1
-                        print(f'loaded api：{slug},{is_change}')
+                        # print(f'loaded api：{slug},{is_change}')
+                        slug_list.append(slug)
                     except Exception as api_error:
                         error_num += 1
                         print(f'api {slug} 异常:' + str(api_error))
                 print(f'------------------- 上传 api 配置完成 ----------------------------')
+                print(f'上传 api {app} 配置完成:{slug_list}')
                 print()
             except Exception as e:
                 print('上传 API 异常： {}'.format(str(e)))

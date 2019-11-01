@@ -33,37 +33,38 @@ def load_api_data(app, slug, config):
 
 
 def load_all_api_js():
-    export_apps = getattr(settings, 'BSM_EXPORT_APPS', None) + getattr(
-        settings, 'INTERNAL_APPS', None
-    )
+    export_apps = getattr(settings, 'API_APPS', None)
     export_apps = list(set(export_apps))
     for app in export_apps:
         try:
             app_config = apps.get_app_config(app)
             path = app_config.module.__path__[0] + '/api_config.json'
             if not os.path.isfile(path):
-                print(f"{app}没有API_CONFIGS")
+                # print(f"{app}没有API_CONFIGS")
                 continue
             with open(path, 'r', encoding='utf-8') as f:
                 s = f.read()
                 api_config_list = json.loads(s)
 
-                print(f'-------------------开始加载 app：{app} 的api配置 ------------------')
+                # print(f'-------------------开始加载 app：{app} 的api配置 ------------------')
+                slug_list = []
                 for config in api_config_list:
                     slug = ''
                     try:
                         slug = config['slug']
                         load_api_data(app, slug, config)
+                        slug_list.append(slug)
                     except Exception as api_error:
                         print('导出 API {} 异常： {}'.format(slug, traceback.format_exc()))
-                print(f'------------------- 加载 api 配置完成 ----------------------------')
+                # print(f'------------------- 加载 api 配置完成 ----------------------------')
+                print(f'加载 api {app} 配置完成:{slug_list}')
                 print()
         except Exception as e:
             print('加载 API 异常： {}'.format(str(e)))
             print()
 
 
-load_all_api_js()
+# load_all_api_js()
 
 
 def save_api(config):

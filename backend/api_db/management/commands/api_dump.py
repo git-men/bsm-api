@@ -27,9 +27,7 @@ class Command(BaseCommand):
         if app:
             export_apps = [app]
         else:
-            export_apps = getattr(settings, 'BSM_EXPORT_APPS', None) + getattr(
-                settings, 'INTERNAL_APPS', None
-            )
+            export_apps = getattr(settings, 'API_APPS', [])
             export_apps = list(set(export_apps))
 
         error_list = []
@@ -54,6 +52,8 @@ class Command(BaseCommand):
                     f.write(api_json)
                     success_list.append(app)
                 print(f'------------------- 导出 api 配置完成 ----------------------------')
+                slug_list = [api_config['slug'] for api_config in api_list]
+                print(f'导出 api {app} 配置完成:{slug_list}')
             except Exception as e:
                 error_list.append(app)
                 print('导出 API 异常： {}'.format(traceback.format_exc()))

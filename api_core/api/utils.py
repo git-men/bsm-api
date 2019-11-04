@@ -2,8 +2,8 @@ from django.conf import settings
 from api_basebone.core import exceptions
 
 from . import const
-from api_db.api import db
-from api_config.api import js
+from api_db.api import db_driver
+from api_config.api import js_driver
 
 
 def format_api_config(api_config):
@@ -65,12 +65,12 @@ def format_filter_config(filters):
 
 
 def get_api_driver():
-    api_driver = getattr(settings, 'API_DRIVER', const.DRIVER_DB)
+    api_driver = getattr(settings, 'API_DRIVER', const.DEFALUT_DRIVER)
     api_driver = api_driver.lower()
     if api_driver == const.DRIVER_DB:
-        return db
+        return db_driver
     elif api_driver == const.DRIVER_JS:
-        return js
+        return js_driver
     else:
         raise exceptions.BusinessException(
             error_code=exceptions.PARAMETER_FORMAT_ERROR,

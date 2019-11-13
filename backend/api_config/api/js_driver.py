@@ -14,7 +14,7 @@ from api_basebone.core import exceptions
 """list_api_config"""
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('django')
 
 # API_DATA[app][slug]
 API_DATA = {}
@@ -27,8 +27,7 @@ def load_api_data(app, slug, config):
     if app not in API_DATA:
         API_DATA[app] = {}
 
-    if app not in LOAD_TIME:
-        LOAD_TIME[app] = timezone.now()
+    LOAD_TIME[app] = timezone.now()
 
     if 'slug' in config:
         slug = config['slug']

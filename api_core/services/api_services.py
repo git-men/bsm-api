@@ -8,7 +8,7 @@ from ..api import const
 from ..api import po
 from ..api import utils
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('django')
 
 
 def save_api(config):

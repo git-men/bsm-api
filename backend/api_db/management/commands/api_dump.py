@@ -7,7 +7,7 @@ from django.apps import apps
 from django.core.management.base import BaseCommand
 from api_db.api import db
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('django')
 
 
 class Command(BaseCommand):

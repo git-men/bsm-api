@@ -36,7 +36,7 @@ from api_basebone.services import rest_services
 from . import api_param
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('django')
 
 
 class GenericViewMixin:

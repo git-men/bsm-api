@@ -5,7 +5,7 @@ from django.conf import settings
 from django.apps import apps
 
 from django.core.management.base import BaseCommand
-from api_db.api import db
+from api_db.api import db_driver
 
 log = logging.getLogger('django')
 
@@ -37,7 +37,7 @@ class Command(BaseCommand):
             try:
                 app_config = apps.get_app_config(app)
                 path = app_config.module.__path__[0] + '/api_config.json'
-                api_list = db.list_api_config(app)
+                api_list = db_driver.list_api_config(app)
                 if not api_list:
                     continue
                 print(f'-------------------开始导出 app：{app} 的api配置 ------------------')

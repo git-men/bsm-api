@@ -1,3 +1,4 @@
+import json
 from django.conf import settings
 from api_basebone.core import exceptions
 
@@ -62,6 +63,13 @@ def format_filter_config(filters):
 
         if 'children' in f:
             format_filter_config(f['children'])
+
+        if 'value' in f:
+            # value = f['value']
+            try:
+                f['value'] = json.loads(f['value'])
+            except Exception as e:
+                pass
 
 
 def get_api_driver():

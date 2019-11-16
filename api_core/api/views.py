@@ -419,7 +419,8 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             for child in children:
                 self.put_param_into_one_filter(request, child, params)
         else:
-            filter['value'] = self.replace_params(request, filter['value'], params)
+            if isinstance(filter['value'], str):
+                filter['value'] = self.replace_params(request, filter['value'], params)
 
     def replace_params(self, request, s, params):
         """参数注入到列值或查询条件"""
@@ -501,6 +502,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         filters = [f.toDict() for f in api.filter]
         self.put_params_into_filters(request, filters, params)
         data[const.FILTER_CONDITIONS] = filters
+        print(f'run_list_api:' + str(data[const.FILTER_CONDITIONS]))
 
         size, page, size_query_param, page_query_param = self.get_page_param(request, api)
 

@@ -5,6 +5,7 @@ from django.db import transaction
 from django.apps import apps
 
 from api_basebone.core import exceptions
+
 # from api_basebone.export.fields import get_model_field_config
 from api_basebone.restful.serializers import multiple_create_serializer_class
 from api_core.api.cache import api_cache
@@ -125,7 +126,7 @@ def save_parameters(api, parameters, is_create, parent=None):
                     error_code=exceptions.PARAMETER_FORMAT_ERROR,
                     error_data=f'\'operation\': {api.operation} 操作不需要主键参数',
                 )
-        
+
         if parent and (param_type in const.SPECIAL_TYPES):
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
@@ -143,7 +144,7 @@ def save_parameters(api, parameters, is_create, parent=None):
         param_model.desc = param.get('desc')
         param_model.type = param_type
         param_model.required = param.get('required')
-        
+
         if 'is_array' in param:
             param_model.is_array = param.get('is_array')
         if 'default' in param:
@@ -225,7 +226,9 @@ def save_set_fields(api, fields, is_create, model_class, param_list):
             return
 
     if not fields:
-        fields = [[p.name, f'${{{p.name}}}'] for p in param_list if not p.is_special_defined()]
+        fields = [
+            [p.name, f'${{{p.name}}}'] for p in param_list if not p.is_special_defined()
+        ]
 
     meta_filed_names = [f.name for f in model_class._meta.get_fields()]
     for field in fields:
@@ -257,7 +260,7 @@ def save_set_fields(api, fields, is_create, model_class, param_list):
         if field_model.name not in meta_filed_names:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                error_data=f'{api.app}__{api.model} 没有属性{field_model.name}'
+                error_data=f'{api.app}__{api.model} 没有属性{field_model.name}',
             )
         field_model.save()
 
@@ -324,7 +327,7 @@ def save_one_filter(api, filter, parent=None):
         filter_model.field = filter.get('field')
         filter_model.operator = filter.get('operator')
         if 'value' in filter:
-            filter_model.value = filter.get('value')
+            filter_model.value = json.dumps(filter.get('value'))
         filter_model.save()
 
 

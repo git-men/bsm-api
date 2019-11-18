@@ -502,7 +502,6 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         filters = [f.toDict() for f in api.filter]
         self.put_params_into_filters(request, filters, params)
         data[const.FILTER_CONDITIONS] = filters
-        print(f'run_list_api:' + str(data[const.FILTER_CONDITIONS]))
 
         size, page, size_query_param, page_query_param = self.get_page_param(request, api)
 

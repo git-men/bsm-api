@@ -3,6 +3,7 @@ import logging
 from django.apps import apps
 
 from api_basebone.export.fields import get_model_field_config
+from api_basebone.core import exceptions
 
 from ..api import const
 from ..api import po
@@ -24,6 +25,10 @@ def get_api_config(slug):
 
 def get_api_po(slug):
     config = get_api_config(slug)
+    if not config:
+        raise exceptions.BusinessException(
+            error_code=exceptions.INVALID_API, error_data=f'缺少api：{slug}'
+        )
     api = po.loadAPIFromConfig(config)
     return api
 

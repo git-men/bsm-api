@@ -165,7 +165,7 @@ class GenericViewMixin:
             queryset = queryset.prefetch_related(*field_list)
 
         filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
-        queryset = queryset_utils.annotate(queryset, filter_fields + self.display_fields, context={'user': self.request.user})
+        queryset = queryset_utils.annotate(queryset, filter_fields + getattr(self, 'display_fields', []), context={'user': self.request.user})
 
         return self._get_queryset(queryset)
 

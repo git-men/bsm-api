@@ -157,6 +157,9 @@ def loadAPIFromConfig(config):
             api.expand_fields = ",".join(config['expand_fields'])
         else:
             api.expand_fields = config['expand_fields']
+    else:
+        api.expand_fields = ''
+        
     if 'func_name' in config:
         api.func_name = config['func_name']
     else:

@@ -491,6 +491,9 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         """依据显示的列，展开属性"""
         expand_fields = api.expand_fields_set
         for field in fields:
+            if field.name.startswith('-'):
+                """负号开头的不用显示，所以不用expand"""
+                continue
             nest_fields = field.name.split('.')
             if len(nest_fields) > 1:
                 expand = '.'.join(nest_fields[:-1])

@@ -25,6 +25,7 @@ from api_basebone.restful.serializers import create_serializer_class
 from api_basebone.restful.serializers import multiple_create_serializer_class
 
 from api_basebone.utils import meta
+from api_basebone.utils import queryset as queryset_utils
 from api_basebone.utils.gmeta import get_gmeta_config_by_key
 from api_basebone.restful.mixins import FormMixin
 
@@ -154,12 +155,19 @@ class GenericViewMixin:
             objects = getattr(self.model, managers['client_api'], self.model.objects)
         else:
             objects = self.model.objects
+
+        queryset = objects.all()
+
         expand_fields = self.expand_fields
-        if not expand_fields:
-            return self._get_queryset(objects.all())
-        expand_fields = self.translate_expand_fields(expand_fields)
-        field_list = [item.replace('.', '__') for item in expand_fields]
-        return self._get_queryset(objects.all().prefetch_related(*field_list))
+        if expand_fields:
+            expand_fields = self.translate_expand_fields(expand_fields)
+            field_list = [item.replace('.', '__') for item in expand_fields]
+            queryset = queryset.prefetch_related(*field_list)
+
+        filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
+        queryset = queryset_utils.annotate(queryset, filter_fields + getattr(self, 'display_fields', []), context={'user': self.request.user})
+
+        return self._get_queryset(queryset)
 
     def get_serializer_class(self, expand_fields=None):
         """动态的获取序列化类
@@ -268,7 +276,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 if isinstance(item, str):
                     item = json.loads(item)
             params.append(item)
-        
+
         if parameter.is_array:
             return params
         else:
@@ -327,7 +335,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         params = {}
         for p in parameters:
             params[p.name] = self.get_param_value(request, p)
-        
+
         return rest_services.client_func(self, request.user, api.app, api.model, api.func_name, params)
 
     def filter_response_display(self, display_fields, response):
@@ -368,7 +376,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         kwargs[self.lookup_field] = id
         self.kwargs = kwargs
         self.make_set_data(request, api)
-        
+
         display_fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, display_fields)
         display_fields = [f.name for f in display_fields]
@@ -381,7 +389,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         kwargs[self.lookup_field] = id
         self.kwargs = kwargs
         self.make_set_data(request, api)
-        
+
         display_fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, display_fields)
         display_fields = [f.name for f in display_fields]
@@ -393,7 +401,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         id = self.get_pk_value(request, api)
         kwargs[self.lookup_field] = id
         self.kwargs = kwargs
-        
+
         return rest_services.destroy(self, request)
 
     def run_retrieve_api(self, request, api, *args, **kwargs):
@@ -405,7 +413,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, fields)
         display_fields = [f.name for f in fields]
-        
+
         return rest_services.retrieve(self, display_fields)
 
     def put_params_into_filters(self, request, filters, params):
@@ -446,7 +454,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                         )
                     v = params[k]
                     s = s.replace(f'${{{k}}}', f'{v}')
-        
+
         # 服务器定义参数的注入
         if '#{' in s:
             pat = r'#{([\w\.-]+)}'
@@ -496,9 +504,9 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             data._mutable = True
         if api.get_order_by_fields():
             data[const.ORDER_BY_FIELDS] = api.get_order_by_fields()
-        
+
         params = self.get_request_params(request, api)
-        
+
         filters = [f.toDict() for f in api.filter]
         self.put_params_into_filters(request, filters, params)
         data[const.FILTER_CONDITIONS] = filters
@@ -521,6 +529,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, fields)
         display_fields = [f.name for f in fields]
+        self.display_fields = display_fields
         self.pagination_class.page_size_query_param = size_query_param
         self.pagination_class.page_query_param = page_query_param
         return rest_services.display(self, display_fields)
@@ -530,9 +539,9 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         data = request.data
         if hasattr(data, '_mutable'):
             data._mutable = True
-        
+
         params = self.get_request_params(request, api)
-        
+
         filters = [f.toDict() for f in api.filter]
         self.put_params_into_filters(request, filters, params)
         data[const.FILTER_CONDITIONS] = filters
@@ -549,7 +558,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         data = request.data
         if hasattr(data, '_mutable'):
             data._mutable = True
-        
+
         filters = [f.toDict() for f in api.filter]
         self.put_params_into_filters(request, filters, params)
         data[const.FILTER_CONDITIONS] = filters

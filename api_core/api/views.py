@@ -21,7 +21,7 @@ from api_basebone.drf.pagination import PageNumberPagination
 
 from api_basebone.restful.const import CLIENT_END_SLUG
 
-from api_basebone.restful.serializers import create_serializer_class
+from api_basebone.restful.serializers import create_serializer_class, sort_expand_fields
 from api_basebone.restful.serializers import multiple_create_serializer_class
 
 from api_basebone.utils import meta
@@ -158,14 +158,17 @@ class GenericViewMixin:
 
         queryset = objects.all()
 
+        context = {'user': self.request.user}
+
         expand_fields = self.expand_fields
+        filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
+        fields = filter_fields + [f.name for f in self.api.displayfield]
         if expand_fields:
             expand_fields = self.translate_expand_fields(expand_fields)
-            field_list = [item.replace('.', '__') for item in expand_fields]
-            queryset = queryset.prefetch_related(*field_list)
+            expand_dict = sort_expand_fields(expand_fields)
+            queryset = queryset.prefetch_related(*queryset_utils.expand_dict_to_prefetch(queryset.model, expand_dict, fields=fields, context=context))
 
-        filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
-        queryset = queryset_utils.annotate(queryset, filter_fields + [f.name for f in self.api.displayfield], context={'user': self.request.user})
+        queryset = queryset_utils.annotate(queryset, fields=fields, context=context)
 
         return self._get_queryset(queryset)
 

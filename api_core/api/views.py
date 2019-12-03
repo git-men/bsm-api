@@ -165,7 +165,7 @@ class GenericViewMixin:
             queryset = queryset.prefetch_related(*field_list)
 
         filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
-        queryset = queryset_utils.annotate(queryset, filter_fields + getattr(self, 'display_fields', []), context={'user': self.request.user})
+        queryset = queryset_utils.annotate(queryset, filter_fields + [f.name for f in self.api.displayfield], context={'user': self.request.user})
 
         return self._get_queryset(queryset)
 
@@ -230,6 +230,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 error_code=exceptions.THIS_ACTION_IS_NOT_AUTHENTICATE,
                 error_data=f'{request.method}此种请求不允许访问\"{slug}\"',
             )
+        self.api = api
         self.model = apps.all_models[api.app][api.model]
         self.action = self.API_ACTION_MAP.get(api.operation, '')
         api_runnser = self.API_RUNNER_MAP.get(api.operation)

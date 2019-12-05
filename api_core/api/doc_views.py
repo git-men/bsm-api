@@ -1,6 +1,8 @@
 import json
 
 from django.apps import apps
+from django.shortcuts import render
+from django.conf import settings
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -284,3 +286,11 @@ class ApiDocViewSet(viewsets.GenericViewSet):
         result['components'] = {}
         result['components']['schemas'] = self.get_schema()
         return Response(result)
+
+    @action(detail=False, url_path='help')
+    def help(self, request, *args, **kwargs):
+        ''''''
+        static_url = settings.STATIC_URL
+        context = {'static_url': static_url + 'api/swagger/', 'doc_url': '../doc/'}
+        return render(request, 'index.html', context)
+

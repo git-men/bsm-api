@@ -147,6 +147,8 @@ def loadAPIFromConfig(config):
         api.summary = config['summary']
     if 'demo' in config:
         api.demo = config['demo']
+    else:
+        api.demo = ''
     if 'ordering' in config:
         if isinstance(config['ordering'], list):
             api.ordering = ",".join(config['ordering'])
@@ -159,7 +161,7 @@ def loadAPIFromConfig(config):
             api.expand_fields = config['expand_fields']
     else:
         api.expand_fields = ''
-        
+
     if 'func_name' in config:
         api.func_name = config['func_name']
     else:

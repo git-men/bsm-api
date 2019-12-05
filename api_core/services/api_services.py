@@ -42,8 +42,11 @@ def get_all_api_po():
     api_list = list_api()
     po_list = []
     for config in api_list:
-        po = get_api_po(config['slug'])
-        po_list.append(po)
+        try:
+            po = get_api_po(config['slug'])
+            po_list.append(po)
+        except Exception as e:
+            pass
     return po_list
 
 

@@ -240,7 +240,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         return api_runnser(self, request, api, *args, **kwargs)
 
     def get_param_value(self, request, parameter):
-        value = request.GET.get(parameter.name) or request.POST.get(parameter.name) or parameter.default
+        value = request.GET.get(parameter.name) or request.POST.get(parameter.name)
         if (value is None) and parameter.default:
             value = parameter.default
         if (value is None) and (parameter.required):
@@ -266,8 +266,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                         item = False
                     else:
                         item = bool(eval(item))
+                elif isinstance(item, bool):
+                    """本身是布尔值，不用处理"""
+                    pass
                 else:
-                    item = bool(eval(item))
+                    print(f'TYPE_BOOLEAN:' + str(type(item)))
+                    item = bool(item)
             elif param_type in (api_const.TYPE_INT, api_const.TYPE_PAGE_IDX, api_const.TYPE_PAGE_SIZE):
                 if item:
                     item = int(item)

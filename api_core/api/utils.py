@@ -14,7 +14,17 @@ def format_api_config(api_config):
             del api_config[k]
 
     api_config['displayfield'] = [f['name'] for f in api_config['displayfield']]
-    api_config['setfield'] = [[f['name'], f['value']] for f in api_config['setfield']]
+    # api_config['setfield'] = [[f['name'], f['value']] for f in api_config['setfield']]
+    setfield = []
+    for f in api_config['setfield']:
+        value = f['value']
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception as e:
+                pass
+        setfield.append([f['name'], value])
+    api_config['setfield'] = setfield
 
     if api_config['ordering']:
         api_config['ordering'] = api_config['ordering'].replace(' ', '').split(',')
@@ -38,6 +48,12 @@ def format_param_config(params):
         for ek in exclude_keys:
             if ek in param:
                 del param[ek]
+
+        if 'default' in param and isinstance(param['default'], str):
+            try:
+                param['default'] = json.loads(param['default'])
+            except Exception as e:
+                pass
 
         if 'children' in param:
             if param['children']:
@@ -64,7 +80,7 @@ def format_filter_config(filters):
         if 'children' in f:
             format_filter_config(f['children'])
 
-        if 'value' in f:
+        if 'value' in f and isinstance(f['value'], str):
             # value = f['value']
             try:
                 f['value'] = json.loads(f['value'])

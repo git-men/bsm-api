@@ -145,6 +145,8 @@ def loadAPIFromConfig(config):
         )
     if 'summary' in config:
         api.summary = config['summary']
+    else:
+        api.summary = ""
     if 'demo' in config:
         api.demo = config['demo']
     else:
@@ -154,6 +156,8 @@ def loadAPIFromConfig(config):
             api.ordering = ",".join(config['ordering'])
         else:
             api.ordering = config['ordering']
+    else:
+        api.ordering = ''
     if 'expand_fields' in config:
         if isinstance(config['expand_fields'], list):
             api.expand_fields = ",".join(config['expand_fields'])
@@ -229,12 +233,14 @@ def loadParametersFromConfig(api, parameters, parent=None):
 
         po = ParameterPO()
         po.api = api
+        po.name = param.get('name')
         if parent:
             po.parent = parent
             po.layer = parent.layer + 1
+            po.fullname = parent.fullname + po.name
         else:
             po.layer = 0
-        po.name = param.get('name')
+            po.fullname = po.name
         po.desc = param.get('desc')
         po.type = param_type
         po.required = param.get('required')

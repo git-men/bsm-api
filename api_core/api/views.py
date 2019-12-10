@@ -163,8 +163,22 @@ class GenericViewMixin:
         context = {'user': self.request.user}
 
         expand_fields = self.expand_fields
-        filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
+        filters = self.request.data.get(const.FILTER_CONDITIONS, [])
+
+        def get_filter_fields(filters):
+            """遍历所有的"""
+            fields = []
+            for f in filters:
+                if 'field' in f:
+                    fields.append(f['field'])
+                if 'children' in f:
+                    fields += get_filter_fields(f['children'])
+            return fields
+
+        filter_fields = get_filter_fields(filters)
+        # filter_fields = [con['field'] for con in filters if 'field' in con]
         fields = filter_fields + [f.name for f in self.api.displayfield]
+        fields = list(set(fields))
         if expand_fields:
             expand_fields = self.translate_expand_fields(expand_fields)
             expand_dict = sort_expand_fields(expand_fields)
@@ -251,7 +265,10 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 error_data='{}参数为必填'.format(parameter.name),
             )
         if parameter.is_array:
-            items = json.loads(value)
+            if (value is not None) and value != '':
+                items = json.loads(value)
+            else:
+                items = []
         else:
             items = [value]
 

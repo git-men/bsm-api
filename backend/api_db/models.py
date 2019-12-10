@@ -127,7 +127,7 @@ class Parameter(models.Model):
     desc = models.CharField('备注', max_length=100)
     type = models.CharField('参数类型', max_length=20, choices=TYPES_CHOICES)
     required = models.BooleanField('是否必填', default=True)
-    default = models.CharField('默认值', max_length=50, null=True, default='')
+    default = models.CharField('默认值', max_length=50, null=True)
     is_array = models.BooleanField('是否数组', default=False)
 
     parent = models.ForeignKey(
@@ -140,7 +140,7 @@ class Parameter(models.Model):
         if hasattr(self, 'children'):
             config['children'] = [
                 p.to_set_field_config()
-                for p in self.children
+                for p in self.children.all()
                 if not p.is_special_defined()
             ]
         return config

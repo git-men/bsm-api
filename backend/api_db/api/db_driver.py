@@ -65,7 +65,7 @@ def save_api(config):
                 api.expand_fields = config['expand_fields']
         else:
             api.expand_fields = ''
-            
+
         if 'func_name' in config:
             api.func_name = config['func_name']
         else:
@@ -229,43 +229,48 @@ def save_set_fields(api, fields, is_create, model_class, param_list):
             return
 
     if not fields:
+        """如果没有设置set-fields，就默认和parameter配置一致"""
         fields = [
-            [p.name, f'${{{p.name}}}'] for p in param_list if not p.is_special_defined()
+            p.to_set_field_config() for p in param_list if not p.is_special_defined()
         ]
 
     meta_filed_names = [f.name for f in model_class._meta.get_fields()]
     for field in fields:
-        field_model = SetField()
-        field_model.api = api
-        if isinstance(field, list) and len(field) == 2:
-            field_model.name = field[0]
-            field_model.value = field[1]
-        elif isinstance(field, dict):
-            field_model.name = field.get('name')
-            if 'value' in field:
-                field_model.value = field.get('value')
-            else:
-                if api.operation in (
-                    const.OPERATION_CREATE,
-                    const.OPERATION_UPDATE,
-                    const.OPERATION_REPLACE,
-                    const.OPERATION_UPDATE_BY_CONDITION,
-                ):
-                    raise exceptions.BusinessException(
-                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data=f'\'operation\': {api.operation} 操作，必须有列值set-fields.value',
-                    )
-        else:
-            raise exceptions.BusinessException(
-                error_code=exceptions.PARAMETER_FORMAT_ERROR, error_data='set-fields的格式不对'
-            )
+        save_one_set_fields(api, field, meta_filed_names)
 
+
+def save_one_set_fields(api, field, meta_filed_names, parent=None):
+    field_model = SetField()
+    field_model.api = api
+    children = None
+    if isinstance(field, list) and len(field) == 2:
+        field_model.name = field[0]
+        field_model.value = field[1]
+    elif isinstance(field, dict):
+        field_model.name = field.get('name')
+        field_model.value = field.get('value')
+        if 'children' in field:
+            children = field['children']
+    else:
+        raise exceptions.BusinessException(
+            error_code=exceptions.PARAMETER_FORMAT_ERROR, error_data='set-fields的格式不对'
+        )
+
+    if parent:
+        field_model.layer = parent.layer + 1
+        field_model.parent = parent
+    else:
         if field_model.name not in meta_filed_names:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'{api.app}__{api.model} 没有属性{field_model.name}',
             )
-        field_model.save()
+        field_model.layer = 0
+    field_model.save()
+
+    if children:
+        for f in children:
+            save_one_set_fields(api, f, meta_filed_names, field_model)
 
 
 def save_filters(api, filters, is_create):
@@ -344,13 +349,14 @@ def get_api_config(slug):
         raise exceptions.BusinessException(
             error_code=exceptions.OBJECT_NOT_FOUND, error_data=f'找不到对应的api：{slug}'
         )
-    expand_fields = ['displayfield_set', 'setfield_set']
+    expand_fields = ['displayfield_set']
     serializer_class = multiple_create_serializer_class(Api, expand_fields=expand_fields)
     serializer = serializer_class(api)
     config = serializer.data
 
     config['filter'] = get_filters_json(api)
     config['parameter'] = get_param_json(api)
+    config['setfield'] = get_set_field_json(api)
     utils.format_api_config(config)
     api_cache.set_api_config(slug, json.dumps(config))
     return config
@@ -391,6 +397,20 @@ def get_param_json(api):
         else:
             expand_fields.append(expand_fields[-1] + '.children')
     queryset = Parameter.objects.filter(api__id=api.id, parent__isnull=True)
+    return queryset_to_json(queryset, expand_fields, exclude_fields)
+
+
+def get_set_field_json(api):
+    max_layer = SetField.objects.filter(api__id=api.id).aggregate(max=Max('layer'))['max']
+    max_layer = max_layer or 0
+    exclude_fields = []
+    expand_fields = []
+    for i in range(max_layer):
+        if i == 0:
+            expand_fields.append('children')
+        else:
+            expand_fields.append(expand_fields[-1] + '.children')
+    queryset = SetField.objects.filter(api__id=api.id, parent__isnull=True)
     return queryset_to_json(queryset, expand_fields, exclude_fields)
 
 

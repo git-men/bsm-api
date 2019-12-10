@@ -1,12 +1,13 @@
 # import importlib
 import os
 import json
+import traceback
 
 from django.conf import settings
 from django.apps import apps
 
 from django.core.management.base import BaseCommand
-from api_db.api import db
+from api_db.api import db_driver
 
 
 class Command(BaseCommand):
@@ -58,7 +59,7 @@ class Command(BaseCommand):
                     slug = ''
                     try:
                         slug = config['slug']
-                        is_change = db.save_api(config)
+                        is_change = db_driver.save_api(config)
                         success_num += 1
                         if is_change:
                             change_num += 1
@@ -66,7 +67,12 @@ class Command(BaseCommand):
                         slug_list.append(slug)
                     except Exception as api_error:
                         error_num += 1
-                        print(f'api {slug} 异常:' + str(api_error))
+                        print(
+                            f'api {slug} 异常:'
+                            + str(api_error)
+                            + ","
+                            + traceback.format_exc()
+                        )
                 print(f'------------------- 上传 api 配置完成 ----------------------------')
                 print(f'上传 api {app} 配置完成:{slug_list}')
                 print()

@@ -7,24 +7,27 @@ from api_db.api import db_driver
 from api_config.api import js_driver
 
 
+def del_exclude_keys(config, exclude_keys):
+    for k in exclude_keys:
+        if k in config:
+            del config[k]
+
+
 def format_api_config(api_config):
     exclude_keys = ['id']
-    for k in exclude_keys:
-        if k in api_config:
-            del api_config[k]
+    del_exclude_keys(api_config, exclude_keys)
 
     api_config['displayfield'] = [f['name'] for f in api_config['displayfield']]
-    # api_config['setfield'] = [[f['name'], f['value']] for f in api_config['setfield']]
-    setfield = []
+    # setfield = []
     for f in api_config['setfield']:
-        value = f['value']
-        if isinstance(value, str):
+        # value = f['value']
+        if isinstance(f['value'], str):
             try:
-                value = json.loads(value)
-            except Exception as e:
+                f['value'] = json.loads(f['value'])
+            except Exception:
                 pass
-        setfield.append([f['name'], value])
-    api_config['setfield'] = setfield
+        # setfield.append([f['name'], value])
+    # api_config['setfield'] = setfield
 
     if api_config['ordering']:
         api_config['ordering'] = api_config['ordering'].replace(' ', '').split(',')
@@ -40,19 +43,18 @@ def format_api_config(api_config):
 
     format_param_config(api_config['parameter'])
     format_filter_config(api_config['filter'])
+    format_set_field_config(api_config['setfield'])
 
 
 def format_param_config(params):
     exclude_keys = ['id', 'api', 'layer', 'parent']
     for param in params:
-        for ek in exclude_keys:
-            if ek in param:
-                del param[ek]
+        del_exclude_keys(param, exclude_keys)
 
         if 'default' in param and isinstance(param['default'], str):
             try:
                 param['default'] = json.loads(param['default'])
-            except Exception as e:
+            except Exception:
                 pass
 
         if 'children' in param:
@@ -73,9 +75,7 @@ def format_filter_config(filters):
         else:
             exclude_keys.extend(['children'])
 
-        for ek in exclude_keys:
-            if ek in f:
-                del f[ek]
+        del_exclude_keys(f, exclude_keys)
 
         if 'children' in f:
             format_filter_config(f['children'])
@@ -84,11 +84,24 @@ def format_filter_config(filters):
             # value = f['value']
             try:
                 f['value'] = json.loads(f['value'])
-            except Exception as e:
+            except Exception:
                 pass
 
 
+def format_set_field_config(fields):
+    exclude_keys = ['id', 'api', 'layer', 'parent']
+    for f in fields:
+        del_exclude_keys(f, exclude_keys)
+
+        if 'children' in f:
+            if f['children']:
+                format_set_field_config(f['children'])
+            else:
+                del f['children']
+
+
 def get_api_driver():
+    """依据setting配置返回相应的api驱动模块，例如JS为json配置文件，db为数据库"""
     api_driver = getattr(settings, 'API_DRIVER', const.DEFALUT_DRIVER)
     api_driver = api_driver.lower()
     if api_driver == const.DRIVER_DB:

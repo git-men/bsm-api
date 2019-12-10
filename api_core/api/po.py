@@ -44,6 +44,16 @@ class ParameterPO:
     # def __init__(self):
     #     pass
 
+    def to_set_field_config(self):
+        config = {'name': self.name, 'value': f'${{{self.name}}}'}
+        if hasattr(self, 'children'):
+            config['children'] = [
+                p.to_set_field_config()
+                for p in self.children
+                if not p.is_special_defined()
+            ]
+        return config
+
     def is_special_defined(self):
         """自定义参数，用于特殊用途"""
         return self.type in const.SPECIAL_TYPES
@@ -84,6 +94,18 @@ class SetFieldPO:
 
     def __setitem__(self, k, v):
         return setattr(self, k, v)
+
+    def toDict(self):
+        d = {}
+        d['name'] = self.name
+        d['value'] = self.value
+        d['layer'] = self.layer
+        if hasattr(self, 'children'):
+            d['children'] = []
+            for f in self.children:
+                child = f.toDict()
+                d['children'].append(child)
+        return d
 
 
 class FilterPO:
@@ -237,7 +259,7 @@ def loadParametersFromConfig(api, parameters, parent=None):
         if parent:
             po.parent = parent
             po.layer = parent.layer + 1
-            po.fullname = parent.fullname + po.name
+            po.fullname = parent.fullname + '.' + po.name
         else:
             po.layer = 0
             po.fullname = po.name
@@ -251,7 +273,7 @@ def loadParametersFromConfig(api, parameters, parent=None):
             po.default = param.get('default')
 
         if 'children' in param:
-            loadParametersFromConfig(api, param['children'], po)
+            po.children = loadParametersFromConfig(api, param['children'], po)
         po_list.append(po)
 
     if (pk_count != 1) and api.operation in (
@@ -319,45 +341,54 @@ def loadSetFieldFromConfig(api, fields, model_class, param_list):
 
     if not fields:
         fields = [
-            [p.name, f'${{{p.name}}}'] for p in param_list if not p.is_special_defined()
+            p.to_set_field_config() for p in param_list if not p.is_special_defined()
         ]
 
     po_list = []
     meta_filed_names = [f.name for f in model_class._meta.get_fields()]
     for field in fields:
-        po = SetFieldPO()
-        po.api = api
-        if isinstance(field, list) and len(field) == 2:
-            po.name = field[0]
-            po.value = field[1]
-        elif isinstance(field, dict):
-            po.name = field.get('name')
-            if 'value' in field:
-                po.value = field.get('value')
-            else:
-                if api.operation in (
-                    const.OPERATION_CREATE,
-                    const.OPERATION_UPDATE,
-                    const.OPERATION_REPLACE,
-                    const.OPERATION_UPDATE_BY_CONDITION,
-                ):
-                    raise exceptions.BusinessException(
-                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data=f'\'operation\': {api.operation} 操作，必须有列值set-fields.value',
-                    )
-        else:
-            raise exceptions.BusinessException(
-                error_code=exceptions.PARAMETER_FORMAT_ERROR, error_data='set-fields的格式不对'
-            )
+        po = loadOneSetField(api, field, meta_filed_names)
+        po_list.append(po)
 
+    return po_list
+
+
+def loadOneSetField(api, field, meta_filed_names, parent=None):
+    po = SetFieldPO()
+    po.api = api
+    children = None
+    if isinstance(field, list) and len(field) == 2:
+        po.name = field[0]
+        po.value = field[1]
+    elif isinstance(field, dict):
+        po.name = field.get('name')
+        po.value = field.get('value')
+        if 'children' in field:
+            children = field['children']
+    else:
+        raise exceptions.BusinessException(
+            error_code=exceptions.PARAMETER_FORMAT_ERROR, error_data='set-fields的格式不对'
+        )
+
+    if parent:
+        po.parent = parent
+        po.fullname = parent.fullname + '.' + po.name
+        po.layer = parent.layer + 1
+    else:
+        po.layer = 0
+        po.fullname = po.name
         if po.name not in meta_filed_names:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'{api.app}__{api.model} 没有属性{po.name}',
             )
-        po_list.append(po)
 
-    return po_list
+    if children:
+        po.children = [loadOneSetField(api, f, meta_filed_names, po) for f in children]
+    else:
+        po.children = []
+
+    return po
 
 
 def loadFilterFromConfig(api, filters):

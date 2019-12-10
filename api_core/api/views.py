@@ -35,6 +35,8 @@ from ..services import api_services
 from api_basebone.services import rest_services
 
 from . import api_param
+from .po import SetFieldPO
+from .po import ParameterPO
 
 
 log = logging.getLogger('django')
@@ -270,7 +272,6 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                     """本身是布尔值，不用处理"""
                     pass
                 else:
-                    print(f'TYPE_BOOLEAN:' + str(type(item)))
                     item = bool(item)
             elif param_type in (api_const.TYPE_INT, api_const.TYPE_PAGE_IDX, api_const.TYPE_PAGE_SIZE):
                 if item:
@@ -363,7 +364,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         set_fields = api.setfield
         new_data = {}
         for f in set_fields:
-            new_data[f.name] = self.replace_params(request, f.value, params)
+            if f.children:
+                new_data[f.name] = self.replace_object_params(api, f, params)
+            elif isinstance(f.value, str):
+                new_data[f.name] = self.replace_str_params(request, f.value, params)
+            else:
+                new_data[f.name] = f.value
         data.clear()
         data.update(new_data)
         # if hasattr(data, '_mutable'):
@@ -429,16 +435,77 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             self.put_param_into_one_filter(request, filter, params)
 
     def put_param_into_one_filter(self, request, filter, params):
-        # if ('children' in filter) and (filter['children']):
         if filter['type'] == api_const.FILTER_TYPE_CONTAINER:
             children = filter['children']
             for child in children:
                 self.put_param_into_one_filter(request, child, params)
         else:
             if isinstance(filter['value'], str):
-                filter['value'] = self.replace_params(request, filter['value'], params)
+                filter['value'] = self.replace_str_params(request, filter['value'], params)
 
-    def replace_params(self, request, s, params):
+    def get_set_field_ref_param(self, parameters, value):
+        # 用户自定义参数的注入
+        if '${' in value:
+            pat = r'\${([\w\.-]+)}'
+            ls = re.findall(pat, value)
+            if len(ls) == 1 and value == f'${{{ls[0]}}}':
+                k = ls[0]
+                for p in parameters:
+                    if p.name == k:
+                        return p
+                else:
+                    raise exceptions.BusinessException(
+                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                        error_data=f'参数\'{k}\'为未定义参数',
+                    )
+            else:
+                raise exceptions.BusinessException(
+                    error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                    error_data=f'嵌套的set-field只允许单一参数的赋值方式',
+                )
+        else:
+            raise exceptions.BusinessException(
+                error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                error_data=f'嵌套的field只允许单一参数的赋值方式',
+            )
+
+    def replace_object_params(self, api, setfield: SetFieldPO, params):
+        """复杂参数注入set-field"""
+        if not isinstance(setfield.value, str):
+            return setfield.value
+
+        param_po = self.get_set_field_ref_param(api.parameter, setfield.value)
+        return self.replace_children_params(setfield, param_po, params[param_po.name])
+
+    def replace_children_params(self, setfield: SetFieldPO, param: ParameterPO, data):
+        if isinstance(data, list):
+            save_data = []
+            for d in data:
+                sd = self.replace_children_params(setfield, param, d)
+                save_data.append(sd)
+            return save_data
+
+        if setfield.children:
+            save_data = {}
+            for f in setfield.children:
+                if not hasattr(param, 'children'):
+                    raise exceptions.BusinessException(
+                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                        error_data=f'setfield与parameter格式不匹配，{setfield.fullname}找不到对应的参数{param.fullname}',
+                    )
+                child_param = self.get_set_field_ref_param(param.children, f.value)
+                if child_param.name not in data and child_param.required:
+                    raise exceptions.BusinessException(
+                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                        error_data='{}参数为必填'.format(child_param.fullname),
+                    )
+                child_data = data[child_param.name]
+                save_data[f.name] = self.replace_children_params(f, child_param, child_data)
+            return save_data
+        else:
+            return data
+
+    def replace_str_params(self, request, s, params):
         """参数注入到列值或查询条件"""
 
         # 用户自定义参数的注入
@@ -450,7 +517,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 if k not in params:
                     raise exceptions.BusinessException(
                         error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data=f'filters设置的参数\'{k}\'为未定义参数',
+                        error_data=f'参数\'{k}\'为未定义参数',
                     )
                 return params[k]
             else:
@@ -458,7 +525,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                     if k not in params:
                         raise exceptions.BusinessException(
                             error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                            error_data=f'filters设置的参数\'{k}\'为未定义参数',
+                            error_data=f'参数\'{k}\'为未定义参数',
                         )
                     v = params[k]
                     s = s.replace(f'${{{k}}}', f'{v}')
@@ -580,7 +647,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         set_fields = api.setfield
         set_fields_map = {}
         for f in set_fields:
-            set_fields_map[f.name] = self.replace_params(request, f.value, params)
+            if f.children:
+                set_fields_map[f.name] = self.replace_object_params(api, f, params)
+            elif isinstance(f.value, str):
+                set_fields_map[f.name] = self.replace_str_params(request, f.value, params)
+            else:
+                set_fields_map[f.name] = f.value
 
         return rest_services.update_by_conditon(self, set_fields_map)
 

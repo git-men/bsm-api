@@ -135,6 +135,16 @@ class Parameter(models.Model):
     )
     layer = models.IntegerField('嵌套层数', default=0)
 
+    def to_set_field_config(self):
+        config = {'name': self.name, 'value': f'${{{self.name}}}'}
+        if hasattr(self, 'children'):
+            config['children'] = [
+                p.to_set_field_config()
+                for p in self.children
+                if not p.is_special_defined()
+            ]
+        return config
+
     def is_special_defined(self):
         """自定义参数，用于特殊用途"""
         return self.type in const.SPECIAL_TYPES
@@ -169,8 +179,13 @@ class SetField(models.Model):
     name = models.CharField('字段名', max_length=100)
     value = models.CharField('赋值', max_length=200)
 
+    parent = models.ForeignKey(
+        'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
+    )
+    layer = models.IntegerField('嵌套层数', default=0)
+
     def __str__(self):
-        return self.name
+        return f'SetField:{self.api}, {self.name}, {self.value}'
 
     class Meta:
         verbose_name = 'API的赋值字段'

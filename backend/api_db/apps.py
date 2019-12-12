@@ -10,4 +10,5 @@ class ApiDbConfig(AppConfig):
         import api_db.bsm.functions  # 注册所有云函数
 
         register_api(self.name, exposed)
+        from . import signals
 

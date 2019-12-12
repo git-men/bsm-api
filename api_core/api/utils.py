@@ -8,15 +8,14 @@ from api_config.api import js_driver
 
 
 def del_exclude_keys(config, exclude_keys):
+    if not config:
+        return
     for k in exclude_keys:
         if k in config:
             del config[k]
 
 
 def format_api_config(api_config):
-    exclude_keys = ['id']
-    del_exclude_keys(api_config, exclude_keys)
-
     api_config['displayfield'] = [f['name'] for f in api_config['displayfield']]
     # setfield = []
     for f in api_config['setfield']:
@@ -44,6 +43,10 @@ def format_api_config(api_config):
     format_param_config(api_config['parameter'])
     format_filter_config(api_config['filter'])
     format_set_field_config(api_config['setfield'])
+    if ('permission' in api_config) and api_config['permission']:
+        format_permission_config(api_config['permission'])
+    else:
+        api_config['permission'] = {'group': []}
 
 
 def format_param_config(params):
@@ -98,6 +101,14 @@ def format_set_field_config(fields):
                 format_set_field_config(f['children'])
             else:
                 del f['children']
+
+
+def format_permission_config(permission):
+    exclude_keys = ['display_name']
+    del_exclude_keys(permission, exclude_keys)
+
+    if 'group' in permission:
+        permission['group'] = [g['id'] for g in permission['group']]
 
 
 def get_api_driver():

@@ -35,6 +35,7 @@ from ..services import api_services
 from api_basebone.services import rest_services
 
 from . import api_param
+from .po import ApiPO
 from .po import SetFieldPO
 from .po import ParameterPO
 
@@ -221,10 +222,38 @@ class GenericViewMixin:
         return serializer_class
 
 
+class ApiPermission(permissions.BasePermission):
+    """
+    Api权限控制
+    """
+
+    def has_permission(self, request, view):
+        kwargs = view.kwargs
+        slug = kwargs.get('pk')
+        api = api_services.get_api_po(slug)
+        if api.logined:
+            if not(request.user and request.user.is_authenticated):
+                return False
+            groups = api.groups
+            user = request.user
+            if groups:
+                user_groups = set([ug.id for ug in user.groups.all()])
+                if user_groups & set(groups):
+                    """用户组有权限"""
+                    return True
+                else:
+                    return False
+            else:
+                """空数组代表所有人有权限"""
+                return True
+        return True
+
+
 class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
     """"""
 
-    permission_classes = (permissions.IsAuthenticated,)
+    # permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (ApiPermission,)
     pagination_class = PageNumberPagination
 
     end_slug = CLIENT_END_SLUG
@@ -242,6 +271,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'没有\'{slug}\'这一api',
+            )
+
+        if api.disable:
+            raise exceptions.BusinessException(
+                error_code=exceptions.DISABLE_API,
+                error_data=f'\'{slug}\'已停用',
             )
 
         if not api.method_equal(request.method):

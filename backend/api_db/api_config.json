@@ -2,49 +2,34 @@
     {
         "app": "api_db",
         "demo": "",
-        "displayfield": [
-            "app",
-            "id",
-            "model",
-            "slug"
-        ],
+        "disable": false,
+        "displayfield": [],
         "expand_fields": [],
         "filter": [],
-        "func_name": "",
+        "func_name": "list_api",
+        "logined": true,
         "model": "api",
-        "operation": "list",
+        "operation": "func",
         "ordering": [
             "-id"
         ],
-        "parameter": [
-            {
-                "default": 1,
-                "desc": "",
-                "is_array": false,
-                "name": "page",
-                "required": true,
-                "type": "PAGE_IDX"
-            },
-            {
-                "default": 10,
-                "desc": "",
-                "is_array": false,
-                "name": "size",
-                "required": true,
-                "type": "PAGE_SIZE"
-            }
-        ],
+        "parameter": [],
+        "permission": {
+            "group": []
+        },
         "setfield": [],
         "slug": "list_api",
-        "summary": "查询api"
+        "summary": "查看所有api"
     },
     {
         "app": "api_db",
         "demo": "",
+        "disable": false,
         "displayfield": [],
         "expand_fields": [],
         "filter": [],
         "func_name": "show_api",
+        "logined": true,
         "model": "api",
         "operation": "func",
         "ordering": [],
@@ -58,6 +43,9 @@
                 "type": "string"
             }
         ],
+        "permission": {
+            "group": []
+        },
         "setfield": [],
         "slug": "show_api",
         "summary": ""
@@ -65,6 +53,7 @@
     {
         "app": "api_db",
         "demo": "",
+        "disable": false,
         "displayfield": [
             "*",
             "-demo",
@@ -77,6 +66,7 @@
         "expand_fields": [],
         "filter": [],
         "func_name": "",
+        "logined": true,
         "model": "api",
         "operation": "list",
         "ordering": [
@@ -100,6 +90,9 @@
                 "type": "PAGE_SIZE"
             }
         ],
+        "permission": {
+            "group": []
+        },
         "setfield": [],
         "slug": "list_api2",
         "summary": "查询api"

@@ -1,6 +1,7 @@
 import logging
 
 from django.db import models
+from django.contrib.auth.models import Permission
 from api_core.api import const
 
 
@@ -61,6 +62,17 @@ class Api(models.Model):
     summary = models.TextField('api说明', default='')
     demo = models.TextField('api返回格式范例', default='')
     config = models.TextField('配置json数据', default='')
+
+    disable = models.BooleanField('停用', default=False)
+    logined = models.BooleanField('要求登录', default=True)
+    permission = models.OneToOneField(
+        Permission,
+        verbose_name='权限',
+        on_delete=models.CASCADE,
+        related_name='api',
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return self.slug

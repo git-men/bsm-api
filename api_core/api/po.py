@@ -269,8 +269,13 @@ def loadParametersFromConfig(api, parameters, parent=None):
 
         if 'is_array' in param:
             po.is_array = param.get('is_array')
+        else:
+            po.is_array = False
+
         if 'default' in param:
             po.default = param.get('default')
+        else:
+            po.default = None
 
         if 'children' in param:
             po.children = loadParametersFromConfig(api, param['children'], po)

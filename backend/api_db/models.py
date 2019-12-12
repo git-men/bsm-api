@@ -1,6 +1,7 @@
 import logging
 
 from django.db import models
+from django.contrib.auth.models import Permission
 from api_core.api import const
 
 
@@ -61,6 +62,17 @@ class Api(models.Model):
     summary = models.TextField('api说明', default='')
     demo = models.TextField('api返回格式范例', default='')
     config = models.TextField('配置json数据', default='')
+
+    disable = models.BooleanField('停用', default=False)
+    logined = models.BooleanField('要求登录', default=True)
+    permission = models.OneToOneField(
+        Permission,
+        verbose_name='权限',
+        on_delete=models.CASCADE,
+        related_name='api',
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return self.slug
@@ -127,7 +139,7 @@ class Parameter(models.Model):
     desc = models.CharField('备注', max_length=100)
     type = models.CharField('参数类型', max_length=20, choices=TYPES_CHOICES)
     required = models.BooleanField('是否必填', default=True)
-    default = models.CharField('默认值', max_length=50, null=True, default='')
+    default = models.CharField('默认值', max_length=50, null=True)
     is_array = models.BooleanField('是否数组', default=False)
 
     parent = models.ForeignKey(
@@ -140,7 +152,7 @@ class Parameter(models.Model):
         if hasattr(self, 'children'):
             config['children'] = [
                 p.to_set_field_config()
-                for p in self.children
+                for p in self.children.all()
                 if not p.is_special_defined()
             ]
         return config

@@ -152,6 +152,10 @@ def loadAPIFromConfig(config):
     api.config = config
     api.app = config.get('app')
     api.model = config.get('model')
+
+    api.logined = config.get('logined', True)
+    api.disable = config.get('disable', False)
+
     try:
         model_class = apps.get_model(api.app, api.model)
     except LookupError:
@@ -165,14 +169,10 @@ def loadAPIFromConfig(config):
             error_code=exceptions.PARAMETER_FORMAT_ERROR,
             error_data=f'\'operation\': {api.operation} 不是合法的操作',
         )
-    if 'summary' in config:
-        api.summary = config['summary']
-    else:
-        api.summary = ""
-    if 'demo' in config:
-        api.demo = config['demo']
-    else:
-        api.demo = ''
+
+    api.summary = config.get('summary', '')
+    api.demo = config.get('demo', '')
+
     if 'ordering' in config:
         if isinstance(config['ordering'], list):
             api.ordering = ",".join(config['ordering'])
@@ -204,6 +204,10 @@ def loadAPIFromConfig(config):
         api, config.get('setfield'), model_class, api.parameter
     )
     api.filter = loadFilterFromConfig(api, config.get('filter'))
+
+    permission = config.get('permission', {})
+    api.groups = permission.get('group', [])
+
     return api
 
 

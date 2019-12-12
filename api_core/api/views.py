@@ -35,6 +35,7 @@ from ..services import api_services
 from api_basebone.services import rest_services
 
 from . import api_param
+from .po import ApiPO
 from .po import SetFieldPO
 from .po import ParameterPO
 
@@ -163,8 +164,22 @@ class GenericViewMixin:
         context = {'user': self.request.user}
 
         expand_fields = self.expand_fields
-        filter_fields = [con['field'] for con in self.request.data.get(const.FILTER_CONDITIONS, [])]
+        filters = self.request.data.get(const.FILTER_CONDITIONS, [])
+
+        def get_filter_fields(filters):
+            """遍历所有的"""
+            fields = []
+            for f in filters:
+                if 'field' in f:
+                    fields.append(f['field'])
+                if 'children' in f:
+                    fields += get_filter_fields(f['children'])
+            return fields
+
+        filter_fields = get_filter_fields(filters)
+        # filter_fields = [con['field'] for con in filters if 'field' in con]
         fields = filter_fields + [f.name for f in self.api.displayfield]
+        fields = list(set(fields))
         if expand_fields:
             expand_fields = self.translate_expand_fields(expand_fields)
             expand_dict = sort_expand_fields(expand_fields)
@@ -207,10 +222,38 @@ class GenericViewMixin:
         return serializer_class
 
 
+class ApiPermission(permissions.BasePermission):
+    """
+    Api权限控制
+    """
+
+    def has_permission(self, request, view):
+        kwargs = view.kwargs
+        slug = kwargs.get('pk')
+        api = api_services.get_api_po(slug)
+        if api.logined:
+            if not(request.user and request.user.is_authenticated):
+                return False
+            groups = api.groups
+            user = request.user
+            if groups:
+                user_groups = set([ug.id for ug in user.groups.all()])
+                if user_groups & set(groups):
+                    """用户组有权限"""
+                    return True
+                else:
+                    return False
+            else:
+                """空数组代表所有人有权限"""
+                return True
+        return True
+
+
 class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
     """"""
 
-    permission_classes = (permissions.IsAuthenticated,)
+    # permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (ApiPermission,)
     pagination_class = PageNumberPagination
 
     end_slug = CLIENT_END_SLUG
@@ -228,6 +271,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'没有\'{slug}\'这一api',
+            )
+
+        if api.disable:
+            raise exceptions.BusinessException(
+                error_code=exceptions.DISABLE_API,
+                error_data=f'\'{slug}\'已停用',
             )
 
         if not api.method_equal(request.method):
@@ -251,7 +300,10 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 error_data='{}参数为必填'.format(parameter.name),
             )
         if parameter.is_array:
-            items = json.loads(value)
+            if (value is not None) and value != '':
+                items = json.loads(value)
+            else:
+                items = []
         else:
             items = [value]
 

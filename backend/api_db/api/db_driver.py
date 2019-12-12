@@ -53,6 +53,8 @@ def save_api(config):
             api.summary = config['summary']
         if 'demo' in config:
             api.demo = config['demo']
+        api.logined = config.get('logined', True)
+        api.disable = config.get('disable', False)
         if 'ordering' in config:
             if isinstance(config['ordering'], list):
                 api.ordering = ",".join(config['ordering'])
@@ -349,8 +351,14 @@ def get_api_config(slug):
         raise exceptions.BusinessException(
             error_code=exceptions.OBJECT_NOT_FOUND, error_data=f'找不到对应的api：{slug}'
         )
-    expand_fields = ['displayfield_set']
-    serializer_class = multiple_create_serializer_class(Api, expand_fields=expand_fields)
+    expand_fields = ['displayfield_set', 'permission', 'permission.group_set']
+    exclude_fields = {
+        'api_db__api': ['id'],
+        'auth__permission': ['id', 'name', 'codename', 'content_type'],
+    }
+    serializer_class = multiple_create_serializer_class(
+        Api, expand_fields=expand_fields, exclude_fields=exclude_fields
+    )
     serializer = serializer_class(api)
     config = serializer.data
 

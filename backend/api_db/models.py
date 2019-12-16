@@ -2,6 +2,7 @@ import logging
 
 from django.db import models
 from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group
 from api_core.api import const
 
 
@@ -74,6 +75,7 @@ class Api(models.Model):
         null=True,
         blank=True,
     )
+    groups = models.ManyToManyField(Group, verbose_name='角色', blank=True)
 
     def __str__(self):
         return self.slug

@@ -55,6 +55,7 @@ class Api(models.Model):
     slug = models.SlugField('接口标识', max_length=50, unique=True)
     app = models.CharField('app名字', max_length=50)
     model = models.CharField('数据模型名字', max_length=50)
+    name = models.CharField('名称', max_length=50, default='')
     operation = models.CharField('操作', max_length=20, choices=const.OPERATIONS_CHOICES)
     ordering = models.CharField('排序', max_length=500, blank=True, default='')
     expand_fields = models.CharField('展开字段', max_length=500, blank=True, default='')

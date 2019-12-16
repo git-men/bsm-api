@@ -7,6 +7,27 @@ from api_db.api import db_driver
 from api_config.api import js_driver
 
 
+def query_from_json(data, key):
+    """
+    data为一组json格式的数据，可以是数组也可以是字典
+    key是字符串，以点分隔，每一点深入一层
+    """
+    if isinstance(key, str):
+        keys = key.split('.')
+
+    cur = data
+    for k in keys:
+        if isinstance(k, dict):
+            cur = cur[k]
+        elif isinstance(k, list):
+            cur = [d[k] for d in cur]
+        else:
+            raise exceptions.BusinessException(
+                error_code=exceptions.PARAMETER_FORMAT_ERROR, error_data=f'找不到{key}'
+            )
+    return cur
+
+
 def del_exclude_keys(config, exclude_keys):
     if not config:
         return

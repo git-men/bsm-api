@@ -35,7 +35,7 @@ from ..services import api_services
 from api_basebone.services import rest_services
 
 from . import api_param
-from .po import ApiPO
+from . import utils
 from .po import SetFieldPO
 from .po import ParameterPO
 
@@ -183,7 +183,8 @@ class GenericViewMixin:
         if expand_fields:
             expand_fields = self.translate_expand_fields(expand_fields)
             expand_dict = sort_expand_fields(expand_fields)
-            queryset = queryset.prefetch_related(*queryset_utils.expand_dict_to_prefetch(queryset.model, expand_dict, fields=fields, context=context))
+            queryset = queryset.prefetch_related(*queryset_utils.expand_dict_to_prefetch(queryset.model, expand_dict,
+                fields=fields, context=context))
 
         queryset = queryset_utils.annotate(queryset, fields=fields, context=context)
 
@@ -495,30 +496,35 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             if isinstance(filter['value'], str):
                 filter['value'] = self.replace_str_params(request, filter['value'], params)
 
-    def get_set_field_ref_param(self, parameters, value):
-        # 用户自定义参数的注入
+    def get_single_param(self, value):
+        """是否单一参数的方式，如果是返回参数名，如果不是，返回None"""
         if '${' in value:
             pat = r'\${([\w\.-]+)}'
             ls = re.findall(pat, value)
             if len(ls) == 1 and value == f'${{{ls[0]}}}':
-                k = ls[0]
-                for p in parameters:
-                    if p.name == k:
-                        return p
-                else:
-                    raise exceptions.BusinessException(
-                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data=f'参数\'{k}\'为未定义参数',
-                    )
+                return ls[0]
+            else:
+                return None
+        else:
+            return None
+
+    def get_set_field_ref_param(self, parameters, value):
+        """"""
+        # 用户自定义参数的注入
+        k = self.get_single_param(value)
+        if k:
+            for p in parameters:
+                if p.name == k:
+                    return p
             else:
                 raise exceptions.BusinessException(
                     error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                    error_data=f'嵌套的set-field只允许单一参数的赋值方式',
+                    error_data=f'参数\'{k}\'为未定义参数',
                 )
         else:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                error_data=f'嵌套的field只允许单一参数的赋值方式',
+                error_data=f'嵌套的set-field只允许单一参数的赋值方式',
             )
 
     def replace_object_params(self, api, setfield: SetFieldPO, params):
@@ -526,8 +532,13 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         if not isinstance(setfield.value, str):
             return setfield.value
 
-        param_po = self.get_set_field_ref_param(api.parameter, setfield.value)
-        return self.replace_children_params(setfield, param_po, params[param_po.name])
+        if '.' in setfield.value:
+            """带.的表达方式"""
+            return utils.query_from_json(params, setfield.value)
+        else:
+            """层层嵌套的表达方式"""
+            param_po = self.get_set_field_ref_param(api.parameter, setfield.value)
+            return self.replace_children_params(setfield, param_po, params[param_po.name])
 
     def replace_children_params(self, setfield: SetFieldPO, param: ParameterPO, data):
         if isinstance(data, list):

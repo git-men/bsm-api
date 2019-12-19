@@ -12,4 +12,5 @@ def create_api_permission(sender, instance: Api, **kwargs):
         instance.is_staff = True
         services.create_api_permission(instance)
 
-    instance.permission.groups = instance.groups
+    if set(instance.permission.group_set.all()) != set(instance.groups.all()):
+        instance.permission.group_set.set(instance.groups.all())

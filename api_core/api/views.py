@@ -292,7 +292,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         return api_runnser(self, request, api, *args, **kwargs)
 
     def get_param_value(self, request, parameter):
-        value = request.GET.get(parameter.name) or request.POST.get(parameter.name)
+        value = request.GET.get(parameter.name)
+        if value is None:
+            value = request.POST.get(parameter.name)
+        if value is None:
+            value = request.data.get(parameter.name)
         if (value is None) and parameter.default:
             value = parameter.default
         if (value is None) and (parameter.required):
@@ -410,31 +414,30 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
 
     def make_set_data(self, request, api):
         """往request注入修改的参数和数据"""
-        data = request.data
-        if hasattr(data, '_mutable'):
-            data._mutable = True
+        # data = request.data
+        # if hasattr(data, '_mutable'):
+        #     data._mutable = True
         params = self.get_request_params(request, api)
         set_fields = api.setfield
-        new_data = {}
+        set_data = {}
         for f in set_fields:
             if f.children:
-                new_data[f.name] = self.replace_object_params(api, f, params)
+                set_data[f.name] = self.replace_object_params(api, f, params)
             elif isinstance(f.value, str):
-                new_data[f.name] = self.replace_str_params(request, f.value, params)
+                set_data[f.name] = self.replace_str_params(request, f.value, params)
             else:
-                new_data[f.name] = f.value
-        data.clear()
-        data.update(new_data)
-        # if hasattr(data, '_mutable'):
-        #     data._mutable = False
+                set_data[f.name] = f.value
+        # data.clear()
+        # data.update(set_data)
+        return set_data
 
     def run_create_api(self, request, api, *args, **kwargs):
         """新建操作api"""
-        self.make_set_data(request, api)
+        set_data = self.make_set_data(request, api)
         display_fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, display_fields)
         display_fields = [f.name for f in display_fields]
-        response = rest_services.client_create(self, request)
+        response = rest_services.client_create(self, request, set_data)
         return self.filter_response_display(display_fields, response)
 
     def run_update_api(self, request, api, *args, **kwargs):
@@ -442,12 +445,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         id = self.get_pk_value(request, api)
         kwargs[self.lookup_field] = id
         self.kwargs = kwargs
-        self.make_set_data(request, api)
+        set_data = self.make_set_data(request, api)
 
         display_fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, display_fields)
         display_fields = [f.name for f in display_fields]
-        response = rest_services.client_update(self, request, False)
+        response = rest_services.client_update(self, request, False, set_data)
         return self.filter_response_display(display_fields, response)
 
     def run_replace_api(self, request, api, *args, **kwargs):
@@ -455,12 +458,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         id = self.get_pk_value(request, api)
         kwargs[self.lookup_field] = id
         self.kwargs = kwargs
-        self.make_set_data(request, api)
+        set_data = self.make_set_data(request, api)
 
         display_fields = api.displayfield
         self.expand_fields = self.get_config_expand_fields(api, display_fields)
         display_fields = [f.name for f in display_fields]
-        response = rest_services.client_update(self, request, True)
+        response = rest_services.client_update(self, request, True, set_data)
         return self.filter_response_display(display_fields, response)
 
     def run_delete_api(self, request, api, *args, **kwargs):

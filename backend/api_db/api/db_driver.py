@@ -3,6 +3,7 @@ import json
 from django.db.models import Max
 from django.db import transaction
 from django.apps import apps
+from django.contrib.auth.models import Group
 
 from api_basebone.core import exceptions
 
@@ -77,6 +78,9 @@ def save_api(config):
                     error_code=exceptions.PARAMETER_FORMAT_ERROR,
                     error_data=f'\'operation\': {const.operation} 操作，必须有func_name函数名',
                 )
+
+        save_groups(api, config.get('groups'), is_create)
+            
         api.save()
 
         param_list = save_parameters(api, config.get('parameter'), is_create)
@@ -340,6 +344,16 @@ def save_one_filter(api, filter, parent=None):
             filter_model.value = json.dumps(filter.get('value'))
         filter_model.save()
 
+def save_groups(api: Api, groups, is_create):
+    # if not is_create:
+    #     api.groups.clear()
+
+    if not groups:
+        return
+
+    api.groups.set(groups)
+    # for gid in groups:
+    #     api.groups.add(gid)
 
 def get_api_config(slug):
     config = api_cache.get_api_config(slug)

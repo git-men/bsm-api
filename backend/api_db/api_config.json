@@ -9,6 +9,7 @@
         "func_name": "list_api",
         "logined": true,
         "model": "api",
+        "name": "",
         "operation": "func",
         "ordering": [
             "-id"
@@ -31,6 +32,7 @@
         "func_name": "show_api",
         "logined": true,
         "model": "api",
+        "name": "",
         "operation": "func",
         "ordering": [],
         "parameter": [
@@ -68,6 +70,7 @@
         "func_name": "",
         "logined": true,
         "model": "api",
+        "name": "",
         "operation": "list",
         "ordering": [
             "-id"

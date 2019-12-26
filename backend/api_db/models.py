@@ -12,6 +12,47 @@ logger = logging.getLogger('django')
 class Api(models.Model):
     '''Api接口模型'''
 
+    # OPERATION_LIST = 'list'
+    # OPERATION_RETRIEVE = 'retrieve'
+    # OPERATION_CREATE = 'create'
+    # OPERATION_UPDATE = 'update'
+    # OPERATION_REPLACE = 'replace'
+    # OPERATION_DELETE = 'delete'
+    # OPERATION_UPDATE_BY_CONDITION = 'update_by_condition'
+    # OPERATION_DELETE_BY_CONDITION = 'delete_by_condition'
+    # OPERATION_FUNC = 'func'
+    # OPERATIONS_CHOICES = (
+    #     (OPERATION_LIST, '查看'),
+    #     (OPERATION_RETRIEVE, '详情'),
+    #     (OPERATION_CREATE, '新建'),
+    #     (OPERATION_UPDATE, '全部更新'),
+    #     (OPERATION_REPLACE, '部分更新'),
+    #     (OPERATION_DELETE, '删除'),
+    #     (OPERATION_UPDATE_BY_CONDITION, '批量更新'),
+    #     (OPERATION_DELETE_BY_CONDITION, '批量删除'),
+    #     (OPERATION_FUNC, '云函数'),
+    # )
+
+    # OPERATIONS = set([t[0] for t in OPERATIONS_CHOICES])
+
+    # MATHOD_GET = 'get'
+    # MATHOD_POST = 'post'
+    # MATHOD_PUT = 'put'
+    # MATHOD_DELETE = 'delete'
+    # MATHOD_PATCH = 'patch'
+
+    # METHOD_MAP = {
+    #     OPERATION_LIST: (MATHOD_GET,),
+    #     OPERATION_RETRIEVE: (MATHOD_GET,),
+    #     OPERATION_CREATE: (MATHOD_POST,),
+    #     OPERATION_UPDATE: (MATHOD_PUT,),
+    #     OPERATION_REPLACE: (MATHOD_PATCH, MATHOD_PUT),
+    #     OPERATION_DELETE: (MATHOD_DELETE,),
+    #     OPERATION_UPDATE_BY_CONDITION: (MATHOD_PATCH, MATHOD_PUT),
+    #     OPERATION_DELETE_BY_CONDITION: (MATHOD_DELETE,),
+    #     OPERATION_FUNC: (MATHOD_POST,),
+    # }
+
     slug = models.SlugField('接口标识', max_length=50, unique=True)
     app = models.CharField('app名字', max_length=50)
     model = models.CharField('数据模型名字', max_length=50)
@@ -170,6 +211,9 @@ class SetField(models.Model):
 class Filter(models.Model):
     '''查询条件'''
 
+    # TYPE_CONTAINER = 0  # 容器
+    # TYPE_CHILD = 1  # 单一条件
+
     # OPERATIONS_AND = 'and'
     # OPERATIONS_OR = 'or'
     # OPERATIONS_GT = '>'
@@ -236,122 +280,3 @@ class Filter(models.Model):
     class Meta:
         verbose_name = 'API的查询条件'
         verbose_name_plural = 'API的查询条件'
-
-
-class Trigger(models.Model):
-    '''触发器'''
-
-    TRIGGER_EVENT_CHOICES = (
-        (const.TRIGGER_EVENT_CREATE, '创建'),
-        (const.TRIGGER_EVENT_UPDATE, '更新'),
-        (const.TRIGGER_EVENT_DELETE, '删除'),
-    )
-    TRIGGER_TIME_CHOICES = (
-        (const.TRIGGER_TIME_BEFORE, '入库前'),
-        (const.TRIGGER_TIME_AFTER, '入库后'),
-    )
-
-    slug = models.SlugField('标识', max_length=50, unique=True)
-    app = models.CharField('app名字', max_length=50)
-    model = models.CharField('数据模型名字', max_length=50)
-    name = models.CharField('名称', max_length=50, default='')
-    summary = models.TextField('api说明', default='')
-    event = models.CharField('操作', max_length=20, choices=TRIGGER_EVENT_CHOICES)
-    timing = models.CharField('时机', max_length=20, choices=TRIGGER_TIME_CHOICES)
-
-    def __str__(self):
-        return '%s object (%s,%s,%s,%s,%s,%s)' % (
-            self.__class__.__name__,
-            self.pk,
-            self.slug,
-            self.app,
-            self.model,
-            self.event,
-            self.timing,
-        )
-
-    class Meta:
-        verbose_name = '触发器'
-        verbose_name_plural = '触发器'
-
-
-class TriggerFilter(models.Model):
-    '''触发器条件'''
-
-    TYPE_CONTAINER = 0  # 容器
-    TYPE_CHILD = 1  # 单一条件
-
-    trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
-    type = models.IntegerField(
-        '条件类型', choices=((TYPE_CONTAINER, '容器'), (TYPE_CHILD, '单一条件'))
-    )
-    parent = models.ForeignKey(
-        'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
-    )
-    field = models.CharField('条件字段名', max_length=50, null=True)
-    operator = models.CharField('条件判断符', max_length=20, null=True)
-    value = models.CharField('条件值', max_length=100, null=True)
-    layer = models.IntegerField('嵌套层数', default=0)
-
-    def __str__(self):
-        return '%s object (%s,%s,%s,%s)' % (
-            self.__class__.__name__,
-            self.pk,
-            self.field,
-            self.operator,
-            self.value,
-        )
-
-    class Meta:
-        verbose_name = '触发器条件'
-        verbose_name_plural = '触发器条件'
-
-
-class TriggerAction(models.Model):
-    '''触发器行为'''
-
-    TRIGGER_ACTION_CHOICES = (
-        (const.TRIGGER_ACTION_REJECT, '拒绝存储'),
-        (const.TRIGGER_ACTION_CREATE, '创建记录'),
-        (const.TRIGGER_ACTION_UPDATE, '更新记录'),
-        (const.TRIGGER_ACTION_DELETE, '删除记录'),
-    )
-
-    trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
-    action = models.CharField('条件类型', max_length=20, choices=TRIGGER_ACTION_CHOICES)
-
-    class Meta:
-        verbose_name = '触发器行为'
-        verbose_name_plural = '触发器行为'
-
-
-class TriggerActionSet(models.Model):
-    '''触发器写行为'''
-
-    action = models.ForeignKey(TriggerAction, models.CASCADE, verbose_name='trigger')
-    field = models.CharField('字段名', max_length=200, default='')
-    value = models.TextField('赋值', default='')
-
-    class Meta:
-        verbose_name = '触发器写行为'
-        verbose_name_plural = '触发器写行为'
-
-
-class TriggerActionFilter(models.Model):
-    '''触发器行为的条件'''
-
-    TYPE_CONTAINER = 0  # 容器
-    TYPE_CHILD = 1  # 单一条件
-
-    action = models.ForeignKey(TriggerAction, models.CASCADE, verbose_name='trigger')
-    type = models.IntegerField(
-        '条件类型', choices=((TYPE_CONTAINER, '容器'), (TYPE_CHILD, '单一条件'))
-    )
-    field = models.CharField('条件字段名', max_length=50, null=True)
-    operator = models.CharField('条件判断符', max_length=20, null=True)
-    value = models.CharField('条件值', max_length=100, null=True)
-    layer = models.IntegerField('嵌套层数', default=0)
-
-    class Meta:
-        verbose_name = '触发器写行为'
-        verbose_name_plural = '触发器写行为'

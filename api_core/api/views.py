@@ -297,7 +297,10 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             value = request.POST.get(parameter.name)
         if value is None:
             value = request.data.get(parameter.name)
-        if (value is None) and parameter.default:
+            
+        if (value is None) and (parameter.required):
+            log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
+        if (value is None) and (parameter.default is not None):
             value = parameter.default
         if (value is None) and (parameter.required):
             raise exceptions.BusinessException(

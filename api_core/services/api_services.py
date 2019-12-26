@@ -95,3 +95,8 @@ def add_api_ref_models(models, model_class):
                 models.add(model_class)
                 add_api_ref_models(models, model_class)
 
+
+def get_trigger_config(slug):
+    driver = utils.get_api_driver()
+    config = driver.get_api_config(slug)
+    return config

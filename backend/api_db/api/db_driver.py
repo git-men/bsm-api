@@ -10,14 +10,20 @@ from api_basebone.core import exceptions
 # from api_basebone.export.fields import get_model_field_config
 from api_basebone.restful.serializers import multiple_create_serializer_class
 from api_core.api.cache import api_cache
+from api_core.api.cache import trigger_cache
 from api_core.api import const
 from api_core.api import utils
 
 from api_db.models import Api, Parameter, DisplayField, SetField, Filter
+from api_db.models import Trigger
 
 """save_api"""
 """get_api_config"""
 """list_api_config"""
+
+"""get_trigger_config"""
+"""list_trigger_config"""
+"""save_trigger"""
 
 
 def save_api(config):
@@ -444,6 +450,46 @@ def list_api_config(app=None):
     results = []
     for api in apis:
         r = get_api_config(api.slug)
+        results.append(r)
+
+    return results
+
+
+def get_trigger_config(slug):
+    config = trigger_cache.get_config(slug)
+    if config:
+        config = json.loads(config)
+        return config
+    trigger = Trigger.objects.filter(slug=slug).first()
+    if not trigger:
+        raise exceptions.BusinessException(
+            error_code=exceptions.OBJECT_NOT_FOUND, error_data=f'找不到对应的trigger：{slug}'
+        )
+    expand_fields = []
+    exclude_fields = {
+        'api_db__trigger': ['id'],
+    }
+    serializer_class = multiple_create_serializer_class(
+        Trigger, expand_fields=expand_fields, exclude_fields=exclude_fields
+    )
+    serializer = serializer_class(trigger)
+    config = serializer.data
+
+    trigger_cache.set_config(slug, json.dumps(config))
+    return config
+
+
+def list_trigger_config(app=None, model=None):
+    if app:
+        if model:
+            apis = Trigger.objects.filter(app=app, model=model).all()
+        else:
+            apis = Trigger.objects.filter(app=app).all()
+    else:
+        apis = Trigger.objects.all()
+    results = []
+    for api in apis:
+        r = get_trigger_config(api.slug)
         results.append(r)
 
     return results

@@ -278,8 +278,10 @@ def loadParametersFromConfig(api, parameters, parent=None):
 
         if 'default' in param:
             po.default = param.get('default')
+            po.use_default = True
         else:
             po.default = None
+            po.use_default = False
 
         if 'children' in param:
             po.children = loadParametersFromConfig(api, param['children'], po)

@@ -85,9 +85,8 @@ def save_api(config):
                     error_data=f'\'operation\': {const.operation} 操作，必须有func_name函数名',
                 )
 
-        save_groups(api, config.get('groups'), is_create)
-            
         api.save()
+        save_groups(api, config.get('groups'), is_create)
 
         param_list = save_parameters(api, config.get('parameter'), is_create)
         save_display_fields(api, config.get('displayfield'), is_create)
@@ -164,6 +163,10 @@ def save_parameters(api, parameters, is_create, parent=None):
             param_model.is_array = param.get('is_array')
         if 'default' in param:
             param_model.default = param.get('default')
+            param_model.use_default = True
+        else:
+            param_model.default = None
+            param_model.use_default = False
 
         param_model.save()
         if 'children' in param:
@@ -350,16 +353,13 @@ def save_one_filter(api, filter, parent=None):
             filter_model.value = json.dumps(filter.get('value'))
         filter_model.save()
 
+
 def save_groups(api: Api, groups, is_create):
-    # if not is_create:
-    #     api.groups.clear()
-
-    if not groups:
+    if groups is None:
         return
-
     api.groups.set(groups)
-    # for gid in groups:
-    #     api.groups.add(gid)
+    api.save()
+
 
 def get_api_config(slug):
     config = api_cache.get_api_config(slug)

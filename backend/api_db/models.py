@@ -143,6 +143,7 @@ class Parameter(models.Model):
     type = models.CharField('参数类型', max_length=20, choices=TYPES_CHOICES)
     required = models.BooleanField('是否必填', default=True)
     default = models.CharField('默认值', max_length=50, null=True)
+    use_default = models.BooleanField('是否使用默认值', default=True)
     is_array = models.BooleanField('是否数组', default=False)
 
     parent = models.ForeignKey(

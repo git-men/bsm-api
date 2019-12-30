@@ -98,5 +98,10 @@ def add_api_ref_models(models, model_class):
 
 def get_trigger_config(slug):
     driver = utils.get_api_driver()
-    config = driver.get_api_config(slug)
+    config = driver.get_trigger_config(slug)
     return config
+
+
+def list_trigger(app=None):
+    driver = utils.get_api_driver()
+    return driver.list_api_config()

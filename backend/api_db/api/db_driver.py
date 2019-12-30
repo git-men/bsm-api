@@ -353,12 +353,12 @@ def save_one_filter(api, filter, parent=None):
             filter_model.value = json.dumps(filter.get('value'))
         filter_model.save()
 
-
 def save_groups(api: Api, groups, is_create):
     if groups is None:
         return
     api.groups.set(groups)
     api.save()
+
 
 
 def get_api_config(slug):

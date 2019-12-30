@@ -25,4 +25,4 @@ def api_save(user, config, **kwargs):
 
 @bsm_func(login_required=False, staff_required=True, name='show_trigger', model=Trigger)
 def show_trigger(user, slug, **kwargs):
-    return api_services.get_trigger_config(slug)
+    return api_services.list_trigger_config(slug)

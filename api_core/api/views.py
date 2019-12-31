@@ -5,9 +5,11 @@ import re
 import json
 
 from django.apps import apps
+from django.http.request import HttpRequest
 from rest_framework.viewsets import ModelViewSet
 
 from api_basebone.core import exceptions
+from api_core.api.exceptions import NoSumitParameterLogic
 
 from . import const as api_const
 from api_basebone.core import const, gmeta
@@ -291,22 +293,40 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         api_runnser = self.API_RUNNER_MAP.get(api.operation)
         return api_runnser(self, request, api, *args, **kwargs)
 
-    def get_param_value(self, request, parameter):
-        value = request.GET.get(parameter.name)
-        if value is None:
+    def get_param_value(self, request: HttpRequest, parameter):
+        if parameter.name in request.GET:
+            value = request.GET.get(parameter.name)
+        elif parameter.name in request.POST:
             value = request.POST.get(parameter.name)
-        if value is None:
+        elif parameter.name in request.data:
             value = request.data.get(parameter.name)
+        else:
+            if parameter.use_default:
+                value = parameter.default
+            else:
+                if parameter.required:
+                    log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
+                    # raise exceptions.BusinessException(
+                    #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                    #     error_data='{}参数为必填'.format(parameter.name),
+                    # )
+                else:
+                    raise NoSumitParameterLogic(parameter.name)
+        # value = request.GET.get(parameter.name)
+        # if value is None:
+        #     value = request.POST.get(parameter.name)
+        # if value is None:
+        #     value = request.data.get(parameter.name)
             
-        if (value is None) and (parameter.required):
-            log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
-        if (value is None) and (parameter.default is not None):
-            value = parameter.default
-        if (value is None) and (parameter.required):
-            raise exceptions.BusinessException(
-                error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                error_data='{}参数为必填'.format(parameter.name),
-            )
+        # if (value is None) and (parameter.required):
+        #     log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
+        # if (value is None) and (parameter.default is not None):
+        #     value = parameter.default
+        # if (value is None) and (parameter.required):
+        #     raise exceptions.BusinessException(
+        #         error_code=exceptions.PARAMETER_FORMAT_ERROR,
+        #         error_data='{}参数为必填'.format(parameter.name),
+        #     )
         if parameter.is_array:
             if (value is not None) and value != '':
                 items = json.loads(value)
@@ -355,13 +375,13 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         parameters = api.parameter
         for p in parameters:
             if p.type == api_const.TYPE_PK:
-                id = self.get_param_value(request, p)
+                id = self.get_param_value(request, p)   # NoSumitParameterLogic直接上抛，PK强制为必填
                 if id:
                     return id
                 else:
                     raise exceptions.BusinessException(
                         error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data='没有\'{}\'这一pk参数'.format(p['name']),
+                        error_data='没有\'{}\'这一pk参数，pk参数为必填'.format(p['name']),
                     )
         else:
             raise exceptions.BusinessException(
@@ -378,10 +398,10 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         size_query_param = 'size'
         for p in parameters:
             if p.type == api_const.TYPE_PAGE_SIZE:
-                size = self.get_param_value(request, p)
+                size = self.get_param_value(request, p)   # NoSumitParameterLogic直接上抛，size强制为必填
                 size_query_param = p.name
             elif p.type == api_const.TYPE_PAGE_IDX:
-                page = self.get_param_value(request, p)
+                page = self.get_param_value(request, p)   # NoSumitParameterLogic直接上抛，page强制为必填
                 page_query_param = p.name
 
         return size, page, size_query_param, page_query_param
@@ -395,7 +415,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         params = {}
         for p in parameters:
             if not p.is_special_defined():
-                params[p['name']] = self.get_param_value(request, p)
+                try:
+                    params[p['name']] = self.get_param_value(request, p)
+                except NoSumitParameterLogic:
+                    """没有参数的话就不填这个值"""
+                    pass
         return params
 
     def run_func_api(self, request, api, *args, **kwargs):
@@ -403,7 +427,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         parameters = api.parameter
         params = {}
         for p in parameters:
-            params[p.name] = self.get_param_value(request, p)
+            try:
+                params[p.name] = self.get_param_value(request, p)
+            except NoSumitParameterLogic:
+                """没有参数的话就不填这个值"""
+                pass
 
         return rest_services.client_func(self, request.user, api.app, api.model, api.func_name, params)
 
@@ -425,9 +453,17 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         set_data = {}
         for f in set_fields:
             if f.children:
-                set_data[f.name] = self.replace_object_params(api, f, params)
+                try:
+                    set_data[f.name] = self.replace_object_params(api, f, params)
+                except NoSumitParameterLogic:
+                    """没有上传就不set"""
+                    pass
             elif isinstance(f.value, str):
-                set_data[f.name] = self.replace_str_params(request, f.value, params)
+                try:
+                    set_data[f.name] = self.replace_str_params(request, f.value, params)
+                except NoSumitParameterLogic:
+                    """没有上传就不set"""
+                    pass
             else:
                 set_data[f.name] = f.value
         # data.clear()
@@ -523,10 +559,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 if p.name == k:
                     return p
             else:
-                raise exceptions.BusinessException(
-                    error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                    error_data=f'参数\'{k}\'为未定义参数',
-                )
+                # raise exceptions.BusinessException(
+                #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                #     error_data=f'参数\'{k}\'为未定义参数',
+                # )
+                raise NoSumitParameterLogic(k)
         else:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
@@ -545,6 +582,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             """层层嵌套的表达方式"""
             param_po = self.get_set_field_ref_param(api.parameter, setfield.value)
             return self.replace_children_params(setfield, param_po, params[param_po.name])
+            # NoSumitParameterLogic 继续向上抛，让上一层处理
 
     def replace_children_params(self, setfield: SetFieldPO, param: ParameterPO, data):
         if isinstance(data, list):
@@ -562,14 +600,18 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                         error_code=exceptions.PARAMETER_FORMAT_ERROR,
                         error_data=f'setfield与parameter格式不匹配，{setfield.fullname}找不到对应的参数{param.fullname}',
                     )
-                child_param = self.get_set_field_ref_param(param.children, f.value)
-                if child_param.name not in data and child_param.required:
-                    raise exceptions.BusinessException(
-                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data='{}参数为必填'.format(child_param.fullname),
-                    )
-                child_data = data[child_param.name]
-                save_data[f.name] = self.replace_children_params(f, child_param, child_data)
+                try:
+                    child_param = self.get_set_field_ref_param(param.children, f.value)
+                    if child_param.name not in data and child_param.required:
+                        raise exceptions.BusinessException(
+                            error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                            error_data='{}参数为必填'.format(child_param.fullname),
+                        )
+                    child_data = data[child_param.name]
+                    save_data[f.name] = self.replace_children_params(f, child_param, child_data)
+                except NoSumitParameterLogic:
+                    """如果此参数不传，那么整个分支的值都没有"""
+                    pass
             return save_data
         else:
             return data
@@ -584,18 +626,20 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             if len(ls) == 1 and s == f'${{{ls[0]}}}':
                 k = ls[0]
                 if k not in params:
-                    raise exceptions.BusinessException(
-                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data=f'参数\'{k}\'为未定义参数',
-                    )
+                    # raise exceptions.BusinessException(
+                    #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                    #     error_data=f'参数\'{k}\'为未定义参数',
+                    # )
+                    raise NoSumitParameterLogic(k)
                 return params[k]
             else:
                 for k in ls:
                     if k not in params:
-                        raise exceptions.BusinessException(
-                            error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                            error_data=f'参数\'{k}\'为未定义参数',
-                        )
+                        # raise exceptions.BusinessException(
+                        #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                        #     error_data=f'参数\'{k}\'为未定义参数',
+                        # )
+                        raise NoSumitParameterLogic(k)
                     v = params[k]
                     s = s.replace(f'${{{k}}}', f'{v}')
 
@@ -717,9 +761,17 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         set_fields_map = {}
         for f in set_fields:
             if f.children:
-                set_fields_map[f.name] = self.replace_object_params(api, f, params)
+                try:
+                    set_fields_map[f.name] = self.replace_object_params(api, f, params)
+                except NoSumitParameterLogic:
+                    """没有上传就不set"""
+                    pass
             elif isinstance(f.value, str):
-                set_fields_map[f.name] = self.replace_str_params(request, f.value, params)
+                try:
+                    set_fields_map[f.name] = self.replace_str_params(request, f.value, params)
+                except NoSumitParameterLogic:
+                    """没有上传就不set"""
+                    pass
             else:
                 set_fields_map[f.name] = f.value
 

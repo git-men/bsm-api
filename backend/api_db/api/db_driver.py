@@ -178,6 +178,10 @@ def save_parameters(api, parameters, is_create, parent=None):
             param_model.is_array = param.get('is_array')
         if 'default' in param:
             param_model.default = param.get('default')
+            param_model.use_default = True
+        else:
+            param_model.default = None
+            param_model.use_default = False
 
         param_model.save()
         if 'children' in param:

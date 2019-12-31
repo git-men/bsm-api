@@ -71,9 +71,10 @@ def format_api_config(api_config):
 
 
 def format_param_config(params):
-    exclude_keys = ['id', 'api', 'layer', 'parent']
+    exclude_keys = ['id', 'api', 'layer', 'parent', 'use_default']
     for param in params:
-        del_exclude_keys(param, exclude_keys)
+        if param['use_default'] is False:
+            del param['default']
 
         if 'default' in param and isinstance(param['default'], str):
             try:
@@ -86,6 +87,8 @@ def format_param_config(params):
                 format_param_config(param['children'])
             else:
                 del param['children']
+
+        del_exclude_keys(param, exclude_keys)
 
 
 def format_filter_config(filters):

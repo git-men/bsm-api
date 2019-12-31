@@ -301,17 +301,22 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         elif parameter.name in request.data:
             value = request.data.get(parameter.name)
         else:
-            if parameter.use_default:
-                value = parameter.default
-            else:
-                if parameter.required:
-                    log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
-                    # raise exceptions.BusinessException(
-                    #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                    #     error_data='{}参数为必填'.format(parameter.name),
-                    # )
+            if parameter.required:
+                log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
+                # raise exceptions.BusinessException(
+                #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                #     error_data='{}参数为必填'.format(parameter.name),
+                # )
+                if parameter.use_default:
+                    value = parameter.default
                 else:
                     raise NoSumitParameterLogic(parameter.name)
+            else:
+                if parameter.use_default:
+                    value = parameter.default
+                else:
+                    raise NoSumitParameterLogic(parameter.name)
+
         # value = request.GET.get(parameter.name)
         # if value is None:
         #     value = request.POST.get(parameter.name)

@@ -170,6 +170,7 @@ def loadAPIFromConfig(config):
             error_data=f'\'operation\': {api.operation} 不是合法的操作',
         )
 
+    api.name = config.get('name', '')
     api.summary = config.get('summary', '')
     api.demo = config.get('demo', '')
 

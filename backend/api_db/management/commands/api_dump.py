@@ -43,6 +43,7 @@ class Command(BaseCommand):
                 print(f'-------------------开始导出 app：{app} 的api配置 ------------------')
                 api_config_list = []
                 for api_config in api_list:
+                    del api_config['id']  # api配置文件不用包含id
                     api_config_list.append(api_config)
 
                 api_json = json.dumps(

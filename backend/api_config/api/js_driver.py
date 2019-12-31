@@ -5,7 +5,8 @@ import traceback
 from django.utils import timezone
 from django.conf import settings
 from django.apps import apps
-from api_basebone.core import exceptions
+
+# from api_basebone.core import exceptions
 
 # from .. import utils
 
@@ -86,9 +87,9 @@ def load_api_js(app=None):
 # load_all_api_js()
 
 
-def save_api(config):
-    """api配置信息保存到数据库"""
-    raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+# def save_api(config):
+#     """api配置信息保存到数据库"""
+#     raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
 
 
 def get_api_config(slug, app=None):

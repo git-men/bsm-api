@@ -3,7 +3,8 @@ import json
 from django.db.models import Max
 from django.db import transaction
 from django.apps import apps
-from django.contrib.auth.models import Group
+
+# from django.contrib.auth.models import Group
 
 from api_basebone.core import exceptions
 
@@ -15,25 +16,43 @@ from api_core.api import utils
 
 from api_db.models import Api, Parameter, DisplayField, SetField, Filter
 
+"""add_api"""
+"""update_api"""
 """save_api"""
 """get_api_config"""
 """list_api_config"""
 
 
-def save_api(config):
+def add_api(config):
+    """新建API"""
+    slug = config.get('slug', '')
+    api = Api.objects.filter(slug=slug).first()
+    if api:
+        raise exceptions.BusinessException(error_code=exceptions.SLUG_EXISTS)
+
+    save_api(config)
+
+
+def update_api(id, config):
+    """更新API"""
+    save_api(config, id)
+
+
+def save_api(config, id=None):
     """api配置信息保存到数据库"""
     with transaction.atomic():
-        slug = config.get('slug', '')
-        api = Api.objects.filter(slug=slug).first()
-        is_create = False
-        if not api:
-            api = Api()
-            api.slug = slug
-            is_create = True
-        # else:
-        #     if api.config == str(config):
-        #         '''配置信息没改'''
-        #         return False
+        if id is None:
+            slug = config.get('slug')
+            api = Api.objects.filter(slug=slug).first()
+            if not api:
+                api = Api()
+                api.slug = slug
+                is_create = True
+            else:
+                is_create = False
+        else:
+            api = Api.objects.get(id=id)
+            is_create = False
         api.config = str(config)
         api.app = config.get('app')
         api.model = config.get('model')
@@ -50,6 +69,8 @@ def save_api(config):
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'\'operation\': {api.operation} 不是合法的操作',
             )
+        if 'name' in config:
+            api.name = config['name']
         if 'summary' in config:
             api.summary = config['summary']
         if 'demo' in config:
@@ -87,7 +108,7 @@ def save_api(config):
         save_set_fields(api, config.get('setfield'), is_create, model_class, param_list)
         save_filters(api, config.get('filter'), is_create)
 
-        api_cache.delete_api_config(slug)
+        api_cache.delete_api_config(api.slug)
 
         return True
 
@@ -363,8 +384,8 @@ def get_api_config(slug):
         )
     expand_fields = ['displayfield_set', 'permission', 'permission.group_set']
     exclude_fields = {
-        'api_db__api': ['id'],
-        'auth__permission': ['id', 'name', 'codename', 'content_type'],
+        # 'api_db__api': ['id'],
+        'auth__permission': ['id', 'name', 'codename', 'content_type']
     }
     serializer_class = multiple_create_serializer_class(
         Api, expand_fields=expand_fields, exclude_fields=exclude_fields

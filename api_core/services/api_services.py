@@ -12,9 +12,28 @@ from ..api import utils
 log = logging.getLogger('django')
 
 
-def save_api(config):
+def add_api(config):
     driver = utils.get_api_driver()
-    return driver.save_api(config)
+    if hasattr(driver, 'add_api'):
+        return driver.add_api(config)
+    else:
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+
+
+def update_api(id, config):
+    driver = utils.get_api_driver()
+    if hasattr(driver, 'update_api'):
+        return driver.update_api(id, config)
+    else:
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+
+
+def save_api(config, id=None):
+    driver = utils.get_api_driver()
+    if hasattr(driver, 'save_api'):
+        return driver.save_api(config, id)
+    else:
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
 
 
 def get_api_config(slug):

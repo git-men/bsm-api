@@ -1,1 +1,1 @@
-exposed = {'api': {'actions': ['list', 'set', 'func'], 'permissions': []}}
+exposed = {'api': {'actions': ['list', 'set', 'func', 'destroy'], 'permissions': []}}

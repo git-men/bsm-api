@@ -1,3 +1,4 @@
+from django.conf import settings
 from api_basebone.core.admin import BSMAdmin, register
 from api_db.models import Api
 
@@ -7,7 +8,19 @@ class APIAdmin(BSMAdmin):
     modal_form = False
     form_fields = ['operation']
     display = ['id', 'operation', 'slug', 'name']
-    inline_actions = ['edit', 'delete']
+    inline_actions = [
+        'edit', 'delete',
+        {
+            'type': 'info',
+            'title': '请求地址',
+            'params': {'title': '查看请求地址', 'content': settings.API_BASE_URL + '/${slug}'},
+        },
+        {
+            'type': 'link',
+            'title': '查看文档',
+            'params': {'link': settings.API_DOC_BASE_URL + '/#/default/${slug}'},
+        },
+    ]
     table_actions = [
         {
             'icon': 'plus',

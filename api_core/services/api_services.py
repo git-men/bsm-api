@@ -14,26 +14,17 @@ log = logging.getLogger('django')
 
 def add_api(config):
     driver = utils.get_api_driver()
-    if hasattr(driver, 'add_api'):
-        return driver.add_api(config)
-    else:
-        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+    return driver.add_api(config)
 
 
 def update_api(id, config):
     driver = utils.get_api_driver()
-    if hasattr(driver, 'update_api'):
-        return driver.update_api(id, config)
-    else:
-        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+    return driver.update_api(id, config)
 
 
 def save_api(config, id=None):
     driver = utils.get_api_driver()
-    if hasattr(driver, 'save_api'):
-        return driver.save_api(config, id)
-    else:
-        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+    return driver.save_api(config, id)
 
 
 def get_api_config(slug):
@@ -54,7 +45,7 @@ def get_api_po(slug):
 
 def list_api(app=None):
     driver = utils.get_api_driver()
-    return driver.list_api_config()
+    return driver.list_api_config(app)
 
 
 def get_all_api_po():
@@ -113,14 +104,3 @@ def add_api_ref_models(models, model_class):
                     continue
                 models.add(model_class)
                 add_api_ref_models(models, model_class)
-
-
-def get_trigger_config(slug):
-    driver = utils.get_api_driver()
-    config = driver.get_trigger_config(slug)
-    return config
-
-
-def list_trigger(app=None):
-    driver = utils.get_api_driver()
-    return driver.list_api_config()

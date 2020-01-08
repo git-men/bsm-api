@@ -3,8 +3,38 @@ from django.conf import settings
 from api_basebone.core import exceptions
 
 from . import const
-from api_db.api import db_driver
-from api_config.api import js_driver
+
+
+class APIDriver:
+    def add_api(self, config):
+        pass
+
+    def update_api(self, id, config):
+        pass
+
+    def save_api(self, config, id=None):
+        pass
+
+    def get_api_config(self, slug):
+        pass
+
+    def list_api_config(self, app=None):
+        pass
+
+    def get_trigger_config(self, slug):
+        pass
+
+    def list_trigger_config(self, app=None, model=None, event=None):
+        pass
+
+    def add_trigger(self, config):
+        pass
+
+    def update_trigger(self, id, config):
+        pass
+
+    def save_trigger(self, config, id=None):
+        pass
 
 
 def query_from_json(data, key):
@@ -135,16 +165,86 @@ def format_permission_config(permission):
         permission['group'] = [g['id'] for g in permission['group']]
 
 
-def get_api_driver():
+def get_api_driver() -> APIDriver:
     """依据setting配置返回相应的api驱动模块，例如JS为json配置文件，db为数据库"""
     api_driver = getattr(settings, 'API_DRIVER', const.DEFALUT_DRIVER)
     api_driver = api_driver.lower()
     if api_driver == const.DRIVER_DB:
-        return db_driver
+        from api_db.api import db_driver
+
+        return db_driver.driver
     elif api_driver == const.DRIVER_JS:
-        return js_driver
+        from api_config.api import js_driver
+
+        return js_driver.driver
     else:
         raise exceptions.BusinessException(
             error_code=exceptions.PARAMETER_FORMAT_ERROR,
             error_data=f'api存储驱动参数\'API_DRIVER\'配置不正确',
         )
+
+
+def format_trigger_config(config):
+    config['triggerfilter'] = format_trigger_filter_config(
+        config.get('triggerfilter'), True
+    )
+    actions = config.get('triggeraction', [])
+    for action in actions:
+        action['triggeractionfilter'] = format_trigger_action_filter_config(
+            action.get('triggeractionfilter'), True
+        )
+
+
+def format_trigger_filter_config(filters: list, is_root):
+    if not filters:
+        return []
+
+    if is_root:
+        filters = [f for f in filters if f['parent'] is None]
+
+    for f in filters:
+        exclude_keys = ['type', 'parent']
+        if f['type'] == const.FILTER_TYPE_CONTAINER:
+            exclude_keys.extend(['field', 'value'])
+        else:
+            exclude_keys.extend(['children'])
+
+        del_exclude_keys(f, exclude_keys)
+
+        if 'children' in f:
+            f['children'] = format_trigger_filter_config(f['children'], False)
+
+        if 'value' in f and isinstance(f['value'], str):
+            try:
+                f['value'] = json.loads(f['value'])
+            except Exception:
+                pass
+
+    return filters
+
+
+def format_trigger_action_filter_config(filters: list, is_root):
+    if not filters:
+        return []
+
+    if is_root:
+        filters = [f for f in filters if f['parent'] is None]
+
+    for f in filters:
+        exclude_keys = ['type', 'parent']
+        if f['type'] == const.FILTER_TYPE_CONTAINER:
+            exclude_keys.extend(['field', 'value'])
+        else:
+            exclude_keys.extend(['children'])
+
+        del_exclude_keys(f, exclude_keys)
+
+        if 'children' in f:
+            f['children'] = format_trigger_action_filter_config(f['children'], False)
+
+        if 'value' in f and isinstance(f['value'], str):
+            try:
+                f['value'] = json.loads(f['value'])
+            except Exception:
+                pass
+    return filters

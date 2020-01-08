@@ -106,6 +106,8 @@ class Api(models.Model):
         verbose_name = 'Api接口模型'
         verbose_name_plural = 'Api接口模型'
 
+        index_together = [("app", "model")]
+
     class GMeta:
         exclude_fields = ['config']
 
@@ -286,48 +288,35 @@ class Filter(models.Model):
 class Trigger(models.Model):
     '''触发器'''
 
-    TRIGGER_EVENT_CHOICES = (
-        (const.TRIGGER_EVENT_BEFORE_CREATE, '创建前'),
-        (const.TRIGGER_EVENT_AFTER_CREATE, '创建后'),
-        (const.TRIGGER_EVENT_BEFORE_UPDATE, '更新前'),
-        (const.TRIGGER_EVENT_AFTER_UPDATE, '更新后'),
-        (const.TRIGGER_EVENT_BEFORE_DELETE, '删除前'),
-        (const.TRIGGER_EVENT_AFTER_DELETE, '删除后'),
-    )
-
     slug = models.SlugField('标识', max_length=50, unique=True)
     app = models.CharField('app名字', max_length=50)
     model = models.CharField('数据模型名字', max_length=50)
     name = models.CharField('名称', max_length=50, default='')
     summary = models.TextField('api说明', default='')
-    event = models.CharField('操作', max_length=20, choices=TRIGGER_EVENT_CHOICES)
+    event = models.CharField('操作', max_length=20, choices=const.TRIGGER_EVENT_CHOICES)
 
     def __str__(self):
-        return '%s object (%s,%s,%s,%s,%s,%s)' % (
+        return '%s object (%s,%s,%s,%s,%s)' % (
             self.__class__.__name__,
             self.pk,
             self.slug,
             self.app,
             self.model,
             self.event,
-            self.timing,
         )
 
     class Meta:
         verbose_name = '触发器'
         verbose_name_plural = '触发器'
 
+        index_together = [('app', 'model', 'event')]
+
 
 class TriggerFilter(models.Model):
     '''触发器条件'''
 
-    TYPE_CONTAINER = 0  # 容器
-    TYPE_CHILD = 1  # 单一条件
-
     trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
-    type = models.IntegerField(
-        '条件类型', choices=((TYPE_CONTAINER, '容器'), (TYPE_CHILD, '单一条件'))
-    )
+    type = models.IntegerField('条件类型', choices=const.TRIGGER_FILTER_CHOICES)
     parent = models.ForeignKey(
         'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
     )
@@ -353,15 +342,8 @@ class TriggerFilter(models.Model):
 class TriggerAction(models.Model):
     '''触发器行为'''
 
-    TRIGGER_ACTION_CHOICES = (
-        (const.TRIGGER_ACTION_REJECT, '拒绝存储'),
-        (const.TRIGGER_ACTION_CREATE, '创建记录'),
-        (const.TRIGGER_ACTION_UPDATE, '更新记录'),
-        (const.TRIGGER_ACTION_DELETE, '删除记录'),
-    )
-
     trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
-    action = models.CharField('条件类型', max_length=20, choices=TRIGGER_ACTION_CHOICES)
+    action = models.CharField('条件类型', max_length=20, choices=const.TRIGGER_ACTION_CHOICES)
 
     class Meta:
         verbose_name = '触发器行为'
@@ -383,12 +365,10 @@ class TriggerActionSet(models.Model):
 class TriggerActionFilter(models.Model):
     '''触发器行为的条件'''
 
-    TYPE_CONTAINER = 0  # 容器
-    TYPE_CHILD = 1  # 单一条件
-
     action = models.ForeignKey(TriggerAction, models.CASCADE, verbose_name='trigger')
-    type = models.IntegerField(
-        '条件类型', choices=((TYPE_CONTAINER, '容器'), (TYPE_CHILD, '单一条件'))
+    type = models.IntegerField('条件类型', choices=const.TRIGGER_ACTION_FILTER_CHOICES)
+    parent = models.ForeignKey(
+        'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
     )
     field = models.CharField('条件字段名', max_length=50, null=True)
     operator = models.CharField('条件判断符', max_length=20, null=True)

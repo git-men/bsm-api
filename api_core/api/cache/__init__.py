@@ -61,4 +61,4 @@ class TriggerCache(BaseCache):
 
 
 api_cache = ApiCache()
-trigger_cache = ApiCache()
+trigger_cache = TriggerCache()

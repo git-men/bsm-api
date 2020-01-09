@@ -5,6 +5,7 @@ from api_core.services.expresstion import resolve_expression
 def convert_filters(filters_config, variables):
     result = {}
     for f in filters_config:
+        # TODO
         result[f['field']] = resolve_expression(f['expression'], variables=variables)
     return result
 

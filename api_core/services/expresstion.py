@@ -4,17 +4,41 @@ from decimal import Decimal
 from functools import reduce
 from django.utils import timezone
 
+
+def operator_wrap(func):
+    return lambda *args: reduce(func, args)
+
+
+def cmp_wrap(func):
+    return lambda *args: bool(reduce(lambda a, b: a is not False and func(a, b) and b, args))
+
+
 FUNCS = {
     'round': round,
     'getattr': getattr,
     'now': timezone.now,
+    'today': lambda: timezone.now().date(),
     'max': max,
     'min': min,
-    'add': lambda *args: reduce(lambda a, b: a+b, args),
-    'and': lambda *args: all(args),
-    'or': lambda *args: any(args),
+    'add': operator_wrap(lambda a, b: a + b),
+    'sub': operator_wrap(lambda a, b: a - b),
+    'mul': operator_wrap(lambda a, b: a * b),
+    'div': operator_wrap(lambda a, b: a / b),
+    'mod': operator_wrap(lambda a, b: a % b),
+    'pow': operator_wrap(lambda a, b: a ** b),
+    'and': operator_wrap(lambda a, b: a and b),
+    'or': operator_wrap(lambda a, b: a or b),
     'len': len,
-    'Decimal': Decimal,
+    'decimal': Decimal,
+    'lt': cmp_wrap(lambda a, b: a < b),
+    'lte': cmp_wrap(lambda a, b: a <= b),
+    'gt': cmp_wrap(lambda a, b: a > b),
+    'gte': cmp_wrap(lambda a, b: a >= b),
+    'eq': cmp_wrap(lambda a, b: a == b),
+    'not': lambda x: not x,
+    'getitem': lambda obj, key: obj[key],
+    'in': lambda key, obj: key in obj,
+    'if': lambda cond, a, b: a if cond else b,
 }
 
 

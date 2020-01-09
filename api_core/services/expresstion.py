@@ -39,6 +39,7 @@ FUNCS = {
     'getitem': lambda obj, key: obj[key],
     'in': lambda key, obj: key in obj,
     'if': lambda cond, a, b: a if cond else b,
+    'slice': lambda obj, *args: obj[slice(*args)]
 }
 
 

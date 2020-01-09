@@ -13,7 +13,7 @@ OPERATION_DELETE_BY_CONDITION = 'delete_by_condition'
 OPERATION_FUNC = 'func'
 
 OPERATIONS_CHOICES = (
-    (OPERATION_LIST, '查看'),
+    (OPERATION_LIST, '列表'),
     (OPERATION_RETRIEVE, '详情'),
     (OPERATION_CREATE, '新建'),
     (OPERATION_UPDATE, '全部更新'),

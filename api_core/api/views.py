@@ -414,87 +414,80 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         return api_runnser(self, request, api, *args, **kwargs)
 
     def get_param_value(self, request: HttpRequest, parameter):
-        if parameter.name in request.GET:
-            value = request.GET.get(parameter.name)
-        elif parameter.name in request.POST:
-            value = request.POST.get(parameter.name)
-        elif parameter.name in request.data:
-            value = request.data.get(parameter.name)
-        else:
-            if parameter.required:
-                log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
-                # raise exceptions.BusinessException(
-                #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                #     error_data='{}参数为必填'.format(parameter.name),
-                # )
-                if parameter.use_default:
-                    value = parameter.default
-                else:
-                    raise NoSumitParameterLogic(parameter.name)
+        value = None
+        try:
+            if parameter.name in request.GET:
+                value = request.GET.get(parameter.name)
+            elif parameter.name in request.POST:
+                value = request.POST.get(parameter.name)
+            elif parameter.name in request.data:
+                value = request.data.get(parameter.name)
             else:
-                if parameter.use_default:
-                    value = parameter.default
-                else:
-                    raise NoSumitParameterLogic(parameter.name)
-
-        # value = request.GET.get(parameter.name)
-        # if value is None:
-        #     value = request.POST.get(parameter.name)
-        # if value is None:
-        #     value = request.data.get(parameter.name)
-            
-        # if (value is None) and (parameter.required):
-        #     log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
-        # if (value is None) and (parameter.default is not None):
-        #     value = parameter.default
-        # if (value is None) and (parameter.required):
-        #     raise exceptions.BusinessException(
-        #         error_code=exceptions.PARAMETER_FORMAT_ERROR,
-        #         error_data='{}参数为必填'.format(parameter.name),
-        #     )
-        if parameter.is_array:
-            if (value is not None) and value != '':
-                items = json.loads(value)
-            else:
-                items = []
-        else:
-            items = [value]
-
-        params = []
-        for item in items:
-            param_type = parameter.type
-            if param_type == api_const.TYPE_BOOLEAN:
-                if isinstance(item, str):
-                    item = item.replace(' ', '')
-                    item = item.lower()
-                    if item == 'true':
-                        item = True
-                    elif item == 'false':
-                        item = False
+                if parameter.required:
+                    log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
+                    # raise exceptions.BusinessException(
+                    #     error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                    #     error_data='{}参数为必填'.format(parameter.name),
+                    # )
+                    if parameter.use_default:
+                        value = parameter.default
                     else:
-                        item = bool(eval(item))
-                elif isinstance(item, bool):
-                    """本身是布尔值，不用处理"""
-                    pass
+                        raise NoSumitParameterLogic(parameter.name)
                 else:
-                    item = bool(item)
-            elif param_type in (api_const.TYPE_INT, api_const.TYPE_PAGE_IDX, api_const.TYPE_PAGE_SIZE):
-                if item:
-                    item = int(item)
-            elif param_type == api_const.TYPE_DECIMAL:
-                item = decimal.Decimal(item)
-            elif param_type == api_const.TYPE_JSON:
-                if isinstance(item, str):
-                    item = json.loads(item)
-            elif param_type == api_const.TYPE_OBJECT:
-                if isinstance(item, str):
-                    item = json.loads(item)
-            params.append(item)
+                    if parameter.use_default:
+                        value = parameter.default
+                    else:
+                        raise NoSumitParameterLogic(parameter.name)
+            if parameter.is_array:
+                if (value is not None) and value != '':
+                    items = json.loads(value)
+                else:
+                    items = []
+            else:
+                items = [value]
 
-        if parameter.is_array:
-            return params
-        else:
-            return params[0]
+            params = []
+            for item in items:
+                param_type = parameter.type
+                if param_type == api_const.TYPE_BOOLEAN:
+                    if isinstance(item, str):
+                        item = item.replace(' ', '')
+                        item = item.lower()
+                        if item == 'true':
+                            item = True
+                        elif item == 'false':
+                            item = False
+                        else:
+                            item = bool(eval(item))
+                    elif isinstance(item, bool):
+                        """本身是布尔值，不用处理"""
+                        pass
+                    else:
+                        item = bool(item)
+                elif param_type in (api_const.TYPE_INT, api_const.TYPE_PAGE_IDX, api_const.TYPE_PAGE_SIZE):
+                    if item:
+                        item = int(item)
+                elif param_type == api_const.TYPE_DECIMAL:
+                    item = decimal.Decimal(item)
+                elif param_type == api_const.TYPE_JSON:
+                    if isinstance(item, str):
+                        item = json.loads(item)
+                elif param_type == api_const.TYPE_OBJECT:
+                    if isinstance(item, str):
+                        item = json.loads(item)
+                params.append(item)
+
+            if parameter.is_array:
+                return params
+            else:
+                return params[0]
+        except exceptions.BusinessException as be:
+            raise be
+        except Exception:
+            raise exceptions.BusinessException(
+                error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                error_data='{}参数格式不正确，值为{}'.format(parameter.name, value),
+            )
 
     def get_pk_value(self, request, api):
         parameters = api.parameter

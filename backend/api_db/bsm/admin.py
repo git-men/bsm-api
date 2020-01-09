@@ -13,7 +13,7 @@ class APIAdmin(BSMAdmin):
         {
             'type': 'info',
             'title': '请求地址',
-            'params': {'title': '查看请求地址', 'content': settings.API_BASE_URL + '/${slug}'},
+            'params': {'title': '查看请求地址', 'content': settings.API_BASE_URL + '/${slug}/'},
         },
         {
             'type': 'link',

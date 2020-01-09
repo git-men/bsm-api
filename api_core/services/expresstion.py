@@ -15,7 +15,7 @@ def cmp_wrap(func):
 
 FUNCS = {
     'round': round,
-    'getattr': getattr,
+    '__getattr__': getattr,
     'now': timezone.now,
     'today': lambda: timezone.now().date(),
     'max': max,
@@ -90,5 +90,5 @@ def resolve_expression(expression, variables):
     # 点操作符，getattr的语法糖
     exp = 'variables()'
     for path_item in expression.split('.'):
-        exp = f'getattr({exp}, "{path_item}")'
+        exp = f'__getattr__({exp}, "{path_item}")'
     return resolve_expression(exp, variables=variables)

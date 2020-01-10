@@ -299,6 +299,7 @@ class Trigger(models.Model):
     name = models.CharField('名称', max_length=50, default='')
     summary = models.TextField('api说明', default='')
     event = models.CharField('操作', max_length=20, choices=const.TRIGGER_EVENT_CHOICES)
+    disable = models.BooleanField('停用', default=False)
 
     def __str__(self):
         return '%s object (%s,%s,%s,%s,%s)' % (

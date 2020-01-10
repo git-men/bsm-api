@@ -589,16 +589,18 @@ def save_trigger(config, id=None):
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'{trigger.app}__{trigger.model} 不是有效的model',
             )
-        
+
         if 'name' in config:
+            """如果没有就用默认值"""
             trigger.name = config['name']
-        else:
-            trigger.name = ''
 
         if 'summary' in config:
+            """如果没有就用默认值"""
             trigger.summary = config['summary']
-        else:
-            trigger.summary = ''
+
+        if 'disable' in config:
+            """如果没有就用默认值"""
+            trigger.disable = config['disable']
 
         trigger.event = config['event']
         if trigger.event not in const.TRIGGER_EVENTS:

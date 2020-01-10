@@ -483,6 +483,7 @@ class TriggerPO:
     event = None
     triggerfilter = None
     triggeraction = None
+    disable = None
 
     def is_create(self) -> bool:
         return self.event in (const.TRIGGER_EVENT_BEFORE_CREATE, const.TRIGGER_EVENT_AFTER_CREATE)
@@ -579,6 +580,7 @@ def loadTrigger(config):
 
     trigger.app = config.get('app')
     trigger.model = config.get('model')
+    trigger.disable = config.get('disable', False)
     try:
         model_class = apps.get_model(trigger.app, trigger.model)
     except LookupError:
@@ -586,16 +588,9 @@ def loadTrigger(config):
             error_code=exceptions.PARAMETER_FORMAT_ERROR,
             error_data=f'{trigger.app}__{trigger.model} 不是有效的model',
         )
-        
-    if 'name' in config:
-        trigger.name = config['name']
-    else:
-        trigger.name = ''
 
-    if 'summary' in config:
-        trigger.summary = config['summary']
-    else:
-        trigger.summary = ''
+    trigger.name = config.get('name', '')
+    trigger.summary = config.get('summary', '')
 
     trigger.event = config['event']
     if trigger.event not in const.TRIGGER_EVENTS:

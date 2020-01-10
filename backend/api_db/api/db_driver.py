@@ -1,5 +1,6 @@
 # import logging
 import json
+import uuid
 from django.db.models import Max
 from django.db import transaction
 from django.apps import apps
@@ -15,6 +16,7 @@ from api_core.api.cache import trigger_cache
 from api_core.api import const
 from api_core.api import utils
 
+from api_db import models
 from api_db.models import Api, Parameter, DisplayField, SetField, Filter
 from api_db.models import Trigger
 from api_db.models import TriggerFilter
@@ -543,7 +545,10 @@ def list_trigger_config(app=None, model=None, event=None):
 
 def add_trigger(config):
     """新建触发器"""
-    slug = config.get('slug', '')
+    slug = config.get('slug')
+    if not slug:
+        slug = models.UUID()
+        config['slug'] = slug
     api = Trigger.objects.filter(slug=slug).first()
     if api:
         raise exceptions.BusinessException(error_code=exceptions.SLUG_EXISTS)
@@ -561,6 +566,9 @@ def save_trigger(config, id=None):
     with transaction.atomic():
         if id is None:
             slug = config.get('slug')
+            if not slug:
+                slug = models.UUID()
+                config['slug'] = slug
             trigger = Trigger.objects.filter(slug=slug).first()
             if not trigger:
                 trigger = Trigger()
@@ -603,6 +611,8 @@ def save_trigger(config, id=None):
 
         save_trigger_filter(trigger, config.get('triggerfilter'), is_create)
         save_trigger_action(trigger, config.get('triggeraction'), is_create)
+
+        trigger_cache.delete_config(trigger.slug)
 
 
 def save_trigger_filter(trigger: Trigger, filters, is_create):

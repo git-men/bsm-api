@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from django.db import models
 from django.contrib.auth.models import Permission
@@ -285,10 +286,14 @@ class Filter(models.Model):
         verbose_name_plural = 'API的查询条件'
 
 
+def UUID():
+    return uuid.uuid4().hex
+
+
 class Trigger(models.Model):
     '''触发器'''
 
-    slug = models.SlugField('标识', max_length=50, unique=True)
+    slug = models.SlugField('标识', max_length=50, unique=True, default=UUID)
     app = models.CharField('app名字', max_length=50)
     model = models.CharField('数据模型名字', max_length=50)
     name = models.CharField('名称', max_length=50, default='')

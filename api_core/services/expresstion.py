@@ -82,13 +82,13 @@ def resolve_expression(expression, variables):
     matched = re.match('^(\w+)\((.*)\)$', expression)
     if matched:
         func, arg_str = matched.groups()
-        if func == 'variables':
+        if func == '__variables__':
             return variables
         args = [resolve_expression(buffer, variables=variables) for buffer in split_expression(arg_str, ',')]
         return FUNCS[func](*args)
 
     # 点操作符，getattr的语法糖
-    exp = 'variables()'
+    exp = '__variables__()'
     for path_item in expression.split('.'):
         exp = f'__getattr__({exp}, "{path_item}")'
     return resolve_expression(exp, variables=variables)

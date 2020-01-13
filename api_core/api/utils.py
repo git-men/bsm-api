@@ -188,11 +188,11 @@ def format_trigger_config(config):
     config['triggerfilter'] = format_trigger_filter_config(
         config.get('triggerfilter'), True
     )
-    actions = config.get('triggeraction', [])
-    for action in actions:
-        action['triggeractionfilter'] = format_trigger_action_filter_config(
-            action.get('triggeractionfilter'), True
-        )
+    # actions = config.get('triggeraction', [])
+    # for action in actions:
+    #     action['triggeractionfilter'] = format_trigger_action_filter_config(
+    #         action.get('triggeractionfilter'), True
+    #     )
 
 
 def format_trigger_filter_config(filters: list, is_root):
@@ -223,28 +223,28 @@ def format_trigger_filter_config(filters: list, is_root):
     return filters
 
 
-def format_trigger_action_filter_config(filters: list, is_root):
-    if not filters:
-        return []
+# def format_trigger_action_filter_config(filters: list, is_root):
+#     if not filters:
+#         return []
 
-    if is_root:
-        filters = [f for f in filters if f['parent'] is None]
+#     if is_root:
+#         filters = [f for f in filters if f['parent'] is None]
 
-    for f in filters:
-        exclude_keys = ['type', 'parent']
-        if f['type'] == const.FILTER_TYPE_CONTAINER:
-            exclude_keys.extend(['field', 'value'])
-        else:
-            exclude_keys.extend(['children'])
+#     for f in filters:
+#         exclude_keys = ['type', 'parent']
+#         if f['type'] == const.FILTER_TYPE_CONTAINER:
+#             exclude_keys.extend(['field', 'value'])
+#         else:
+#             exclude_keys.extend(['children'])
 
-        del_exclude_keys(f, exclude_keys)
+#         del_exclude_keys(f, exclude_keys)
 
-        if 'children' in f:
-            f['children'] = format_trigger_action_filter_config(f['children'], False)
+#         if 'children' in f:
+#             f['children'] = format_trigger_action_filter_config(f['children'], False)
 
-        if 'value' in f and isinstance(f['value'], str):
-            try:
-                f['value'] = json.loads(f['value'])
-            except Exception:
-                pass
-    return filters
+#         if 'value' in f and isinstance(f['value'], str):
+#             try:
+#                 f['value'] = json.loads(f['value'])
+#             except Exception:
+#                 pass
+#     return filters

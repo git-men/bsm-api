@@ -1,6 +1,5 @@
 # import logging
 import json
-import uuid
 from django.db.models import Max
 from django.db import transaction
 from django.apps import apps
@@ -21,8 +20,6 @@ from api_db.models import Api, Parameter, DisplayField, SetField, Filter
 from api_db.models import Trigger
 from api_db.models import TriggerFilter
 from api_db.models import TriggerAction
-from api_db.models import TriggerActionSet
-from api_db.models import TriggerActionFilter
 
 
 def add_api(config):
@@ -482,17 +479,21 @@ def get_trigger_config(slug):
         raise exceptions.BusinessException(
             error_code=exceptions.OBJECT_NOT_FOUND, error_data=f'找不到对应的trigger：{slug}'
         )
-    expand_fields = ['triggeraction_set', 'triggeraction_set.triggeractionset_set', 'triggerfilter_set',
-        'triggeraction_set.triggeractionfilter_set']
+    expand_fields = [
+        'triggerfilter_set',
+        'triggeraction_set',
+        # 'triggeraction_set.triggeractionset_set',
+        # 'triggeraction_set.triggeractionfilter_set'
+    ]
     exclude_fields = {
-        'api_db__triggeraction': ['id', 'trigger'],
-        'api_db__triggeractionset': ['id', 'action'],
         'api_db__triggerfilter': ['id', 'trigger', 'layer'],
-        'api_db__triggeractionfilter': ['id', 'action', 'layer'],
+        'api_db__triggeraction': ['id', 'trigger'],
+        # 'api_db__triggeractionset': ['id', 'action'],
+        # 'api_db__triggeractionfilter': ['id', 'action', 'layer'],
     }
     
     expand_trigger_filter(trigger, expand_fields)
-    expand_trigger_action_filter(trigger, expand_fields)
+    # expand_trigger_action_filter(trigger, expand_fields)
 
     serializer_class = multiple_create_serializer_class(
         Trigger, expand_fields=expand_fields, exclude_fields=exclude_fields
@@ -508,6 +509,7 @@ def get_trigger_config(slug):
 
 def expand_trigger_filter(trigger, expand_fields):
     max_layer = TriggerFilter.objects.filter(trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
+    max_layer = max_layer or 0
     for i in range(max_layer):
         if i == 0:
             expand_fields.append('triggerfilter_set.children')
@@ -515,13 +517,14 @@ def expand_trigger_filter(trigger, expand_fields):
             expand_fields.append(expand_fields[-1] + '.children')
 
 
-def expand_trigger_action_filter(trigger, expand_fields):
-    max_layer = TriggerActionFilter.objects.filter(action__trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
-    for i in range(max_layer):
-        if i == 0:
-            expand_fields.append('triggeraction_set.triggeractionfilter_set.children')
-        else:
-            expand_fields.append(expand_fields[-1] + '.children')
+# def expand_trigger_action_filter(trigger, expand_fields):
+#     max_layer = TriggerActionFilter.objects.filter(action__trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
+#     max_layer = max_layer or 0
+#     for i in range(max_layer):
+#         if i == 0:
+#             expand_fields.append('triggeraction_set.triggeractionfilter_set.children')
+#         else:
+#             expand_fields.append(expand_fields[-1] + '.children')
 
 
 def list_trigger_config(app=None, model=None, event=None):
@@ -658,64 +661,69 @@ def save_trigger_action(trigger: Trigger, actions, is_create):
         action_model = TriggerAction()
         action_model.trigger = trigger
         action_model.action = action['action']
+        action_model.app = action['app']
+        action_model.model = action['model']
         if action_model.action not in const.TRIGGER_ACTIONS:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'\'operation\': {trigger.event} 不是合法的触发器行为',
             )
+
+        if 'fields' in action:
+            # save_trigger_action_set(action_model, action['triggeractionset'], is_create)
+            action_model.fields = action['fields']
+
+        if 'filters' in action:
+            # save_trigger_action_filters(action_model, action['triggeractionfilter'], is_create)
+            action_model.filters = action['filters']
+
         action_model.save()
 
-        if 'triggeractionset' in action:
-            save_trigger_action_set(action_model, action['triggeractionset'], is_create)
 
-        if 'triggeractionfilter' in action:
-            save_trigger_action_filters(action_model, action['triggeractionfilter'], is_create)
+# def save_trigger_action_set(action, sets, is_create):
+#     if not is_create:
+#         TriggerActionSet.objects.filter(action__id=action.id).delete()
 
-
-def save_trigger_action_set(action, sets, is_create):
-    if not is_create:
-        TriggerActionSet.objects.filter(action__id=action.id).delete()
-
-    for s in sets:
-        set_model = TriggerActionSet()
-        set_model.action = action
-        set_model.field = s['field']
-        set_model.value = s['value']
-        set_model.save()
+#     for s in sets:
+#         set_model = TriggerActionSet()
+#         set_model.action = action
+#         set_model.field = s['field']
+#         set_model.value = s['value']
+#         set_model.save()
 
 
-def save_trigger_action_filters(action: TriggerAction, filters: list, is_create):
-    if not is_create:
-        TriggerActionFilter.objects.filter(action__id=action.id).delete()
+# def save_trigger_action_filters(action: TriggerAction, filters: list, is_create):
+#     if not is_create:
+#         TriggerActionFilter.objects.filter(action__id=action.id).delete()
 
-    for f in filters:
-        save_one_trigger_action_filter(action, f)
+#     for f in filters:
+#         save_one_trigger_action_filter(action, f)
 
 
-def save_one_trigger_action_filter(action: TriggerAction, f: TriggerActionFilter, parent=None):
-    filter_model = TriggerActionFilter()
-    filter_model.action = action
-    if parent:
-        filter_model.parent = parent
-        filter_model.layer = parent.layer + 1
-    else:
-        filter_model.layer = 0
+# def save_one_trigger_action_filter(action: TriggerAction, f: TriggerActionFilter, parent=None):
+#     filter_model = TriggerActionFilter()
+#     filter_model.action = action
+#     if parent:
+#         filter_model.parent = parent
+#         filter_model.layer = parent.layer + 1
+#     else:
+#         filter_model.layer = 0
 
-    if 'children' in f:
-        filter_model.type = const.TRIGGER_ACTION_FILTER_TYPE_CONTAINER
-        filter_model.operator = f.get('operator')
-        filter_model.save()
+#     if 'children' in f:
+#         filter_model.type = const.TRIGGER_ACTION_FILTER_TYPE_CONTAINER
+#         filter_model.operator = f.get('operator')
+#         filter_model.save()
 
-        children = f.get('children')
-        for child in children:
-            save_one_trigger_action_filter(action, child, filter_model)
-    else:
-        filter_model.type = const.TRIGGER_ACTION_FILTER_TYPE_CHILD
-        filter_model.field = f.get('field')
-        filter_model.operator = f.get('operator')
-        if 'value' in f:
-            filter_model.value = json.dumps(f.get('value'))
-        filter_model.save()
+#         children = f.get('children')
+#         for child in children:
+#             save_one_trigger_action_filter(action, child, filter_model)
+#     else:
+#         filter_model.type = const.TRIGGER_ACTION_FILTER_TYPE_CHILD
+#         filter_model.field = f.get('field')
+#         filter_model.operator = f.get('operator')
+#         if 'value' in f:
+#             filter_model.value = json.dumps(f.get('value'))
+#         filter_model.save()
 
 
 class DBDriver(utils.APIDriver):

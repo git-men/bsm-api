@@ -286,6 +286,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                     api.app,
                     api.model,
                     api_const.TRIGGER_EVENT_BEFORE_CREATE,
+                    id=None,
                     new_inst=new_inst
                 )
                 
@@ -307,6 +308,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                     api.app,
                     api.model,
                     api_const.TRIGGER_EVENT_AFTER_CREATE,
+                    id=new_inst.id,
                     new_inst=new_inst
                 )
 
@@ -338,8 +340,9 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                         api.app,
                         api.model,
                         api_const.TRIGGER_EVENT_BEFORE_UPDATE,
-                        old_inst,
-                        new_inst
+                        id=new_inst.id,
+                        old_inst=old_inst,
+                        new_inst=new_inst
                     )
 
                 new_inst.save()
@@ -350,8 +353,9 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                         api.app,
                         api.model,
                         api_const.TRIGGER_EVENT_AFTER_UPDATE,
-                        old_inst,
-                        new_inst
+                        id=new_inst.id,
+                        old_inst=old_inst,
+                        new_inst=new_inst
                     )
 
                 return new_inst
@@ -370,6 +374,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                     api.app,
                     api.model,
                     api_const.TRIGGER_EVENT_BEFORE_DELETE,
+                    id=instance.id,
                     old_inst=instance
                 )
 
@@ -384,6 +389,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                     api.app,
                     api.model,
                     api_const.TRIGGER_EVENT_AFTER_DELETE,
+                    id=old_inst.id,
                     old_inst=old_inst
                 )
 

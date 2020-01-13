@@ -2,6 +2,7 @@ import logging
 import uuid
 
 from django.db import models
+from api_basebone.core.fields import JSONField
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import Group
 from api_core.api import const
@@ -350,37 +351,12 @@ class TriggerAction(models.Model):
 
     trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
     action = models.CharField('条件类型', max_length=20, choices=const.TRIGGER_ACTION_CHOICES)
+    app = models.CharField('app名字', default='', max_length=50)
+    model = models.CharField('数据模型名字', default='', max_length=50)
+    fields = JSONField('操作的属性', default={}, blank=True)
+    filters = JSONField('操作的条件', default=[], blank=True)
 
     class Meta:
         verbose_name = '触发器行为'
         verbose_name_plural = '触发器行为'
 
-
-class TriggerActionSet(models.Model):
-    '''触发器写行为'''
-
-    action = models.ForeignKey(TriggerAction, models.CASCADE, verbose_name='trigger')
-    field = models.CharField('字段名', max_length=200, default='')
-    value = models.TextField('赋值', default='')
-
-    class Meta:
-        verbose_name = '触发器写行为'
-        verbose_name_plural = '触发器写行为'
-
-
-class TriggerActionFilter(models.Model):
-    '''触发器行为的条件'''
-
-    action = models.ForeignKey(TriggerAction, models.CASCADE, verbose_name='trigger')
-    type = models.IntegerField('条件类型', choices=const.TRIGGER_ACTION_FILTER_CHOICES)
-    parent = models.ForeignKey(
-        'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
-    )
-    field = models.CharField('条件字段名', max_length=50, null=True)
-    operator = models.CharField('条件判断符', max_length=20, null=True)
-    value = models.CharField('条件值', max_length=100, null=True)
-    layer = models.IntegerField('嵌套层数', default=0)
-
-    class Meta:
-        verbose_name = '触发器写行为'
-        verbose_name_plural = '触发器写行为'

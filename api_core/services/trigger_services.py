@@ -10,6 +10,8 @@ from ..api import const
 from ..api import po
 from ..api import utils
 
+from .trigger_actions import run_action
+
 log = logging.getLogger('django')
 
 
@@ -73,7 +75,7 @@ def list_trigger_po(app=None, model=None, event=None) -> list:
     return po_list
 
 
-def handle_triggers(request, app, model, event, old_inst=None, new_inst=None):
+def handle_triggers(request, app, model, event, id=None, old_inst=None, new_inst=None):
     slug = ''
     try:
         trigger_list = list_trigger_po(app, model, event)
@@ -83,7 +85,7 @@ def handle_triggers(request, app, model, event, old_inst=None, new_inst=None):
                 continue
             slug = trigger.slug
             if check_trigger(request, trigger, old_inst, new_inst):
-                run_trigger(request, trigger, old_inst, new_inst)
+                run_trigger(request, trigger, id, old_inst, new_inst)
     except exceptions.BusinessException as e:
         print(
             f'事件 {app}.{model}.{event}.{slug} 的触发器有异常:'
@@ -108,7 +110,6 @@ def handle_triggers(request, app, model, event, old_inst=None, new_inst=None):
 def check_trigger(request, trigger_po, old_inst, new_inst) -> bool:
     filters = trigger_po.triggerfilter
     result = check_filters(request, filters, old_inst, new_inst)
-    print(f'check_trigger:{result}')
     return result
 
 
@@ -133,7 +134,7 @@ def check_filters(request, filters: list, old_inst, new_inst, conn='and') -> boo
         else:
             result = check_one_filter(request, f, old_inst, new_inst)
 
-        print(f'check_filters:{f}, {result}')
+        # print(f'check_filters:{f}, {result}')
 
         if is_and and (not result):
             """与逻辑，遇假得假"""
@@ -158,7 +159,7 @@ def check_one_filter(request, f: po.TriggerFilterPO, old_inst, new_inst) -> bool
     if f.operator in const.COMPARE_OPERATOR:
         op = const.COMPARE_OPERATOR[f.operator]
         result = op(left, right)
-        print(f'check_one_filter:{left}, {f.operator}, {right}, {result}')
+        # print(f'check_one_filter:{left}, {f.operator}, {right}, {result}')
         return result
     else:
         raise exceptions.BusinessException(
@@ -172,7 +173,7 @@ def getFilterLeftValue(f: po.TriggerFilterPO, old_inst, new_inst):
 
 
 def getFilterRightValue(request, f: po.TriggerFilterPO, old_inst, new_inst):
-    print(f'getFilterRightValue:{f.is_filter_attribute()},{f.is_filter_param()}')
+    # print(f'getFilterRightValue:{f.is_filter_attribute()},{f.is_filter_param()}')
     if f.is_filter_attribute():
         pat = r'\${([\w\.-]+)}'
         fields = re.findall(pat, f.value)
@@ -221,6 +222,8 @@ def getFilterValueFromJson(s):
     return json.loads(s)
 
 
-def run_trigger(request, trigger_po, old_inst, new_inst):
-    print(f'run_trigger:{trigger_po}')
+def run_trigger(request, trigger_po: po.TriggerActionPO, id, old_inst, new_inst):
+    # print(f'run_trigger:{id}')
+    for action in trigger_po.triggeraction:
+        run_action(action.config, id=id, old=old_inst, new=new_inst, user=request.user)
 

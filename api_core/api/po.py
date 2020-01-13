@@ -554,24 +554,30 @@ class TriggerActionPO:
 
     trigger = None
     action = None
+    app = None
+    model = None
+    fields = None
+    filters = None
+
+    config = None
 
 
-class TriggerActionSetPO:
-    '''触发器写行为'''
+# class TriggerActionSetPO:
+#     '''触发器写行为'''
 
-    action = None
-    field = None
-    value = None
+#     action = None
+#     field = None
+#     value = None
 
 
-class TriggerActionFilterPO:
-    action = None
-    type = None
-    parent = None
-    field = None
-    operator = None
-    value = None
-    layer = None
+# class TriggerActionFilterPO:
+#     action = None
+#     type = None
+#     parent = None
+#     field = None
+#     operator = None
+#     value = None
+#     layer = None
 
 
 def loadTrigger(config):
@@ -635,6 +641,7 @@ def loadTriggerAction(trigger: TriggerPO, actions: list):
     trigger.triggeraction = []
     for action in actions:
         action_po = TriggerActionPO()
+        action_po.config = action
         action_po.trigger = trigger
         action_po.action = action['action']
         if action_po.action not in const.TRIGGER_ACTIONS:
@@ -644,47 +651,53 @@ def loadTriggerAction(trigger: TriggerPO, actions: list):
             )
         trigger.triggeraction.append(action_po)
 
-        if 'triggeractionset' in action:
-            loadTriggerActionSet(action_po, action['triggeractionset'])
+        # if 'triggeractionset' in action:
+        #     loadTriggerActionSet(action_po, action['triggeractionset'])
 
-        if 'triggeractionfilter' in action:
-            loadTriggerActionSetFilter(action_po, action['triggeractionfilter'])
+        # if 'triggeractionfilter' in action:
+        #     loadTriggerActionSetFilter(action_po, action['triggeractionfilter'])
 
+        if 'fields' in action:
+            action_po.fields = action['fields']
 
-def loadTriggerActionSet(action: TriggerActionPO, sets: list):
-    action.triggeractionset = []
-    for s in sets:
-        po = TriggerActionSetPO()
-        po.action = action
-        po.field = s['field']
-        po.value = s['value']
-        action.triggeractionset.append(po)
+        if 'filters' in action:
+            action_po.filters = action['filters']
 
 
-def loadTriggerActionSetFilter(action: TriggerActionPO, filters: list):
-    action.triggeractionfilter = [loadOneTriggerActionSetFilter(action, f) for f in filters]
+# def loadTriggerActionSet(action: TriggerActionPO, sets: list):
+#     action.triggeractionset = []
+#     for s in sets:
+#         po = TriggerActionSetPO()
+#         po.action = action
+#         po.field = s['field']
+#         po.value = s['value']
+#         action.triggeractionset.append(po)
 
 
-def loadOneTriggerActionSetFilter(action: TriggerActionPO, f: TriggerActionFilterPO, parent=None):
-    po = TriggerActionFilterPO()
-    po.action = action
-    if parent:
-        po.parent = parent
-        po.layer = parent.layer + 1
-    else:
-        po.layer = 0
+# def loadTriggerActionSetFilter(action: TriggerActionPO, filters: list):
+#     action.triggeractionfilter = [loadOneTriggerActionSetFilter(action, f) for f in filters]
 
-    if 'children' in f:
-        po.type = const.TRIGGER_ACTION_FILTER_TYPE_CONTAINER
-        po.operator = f.get('operator')
 
-        children = f.get('children')
-        po.children = [loadOneTriggerActionSetFilter(action, child, po) for child in children]
-    else:
-        po.type = const.TRIGGER_ACTION_FILTER_TYPE_CHILD
-        po.field = f.get('field')
-        po.operator = f.get('operator')
-        if 'value' in f:
-            po.value = json.dumps(f.get('value'))
+# def loadOneTriggerActionSetFilter(action: TriggerActionPO, f: TriggerActionFilterPO, parent=None):
+#     po = TriggerActionFilterPO()
+#     po.action = action
+#     if parent:
+#         po.parent = parent
+#         po.layer = parent.layer + 1
+#     else:
+#         po.layer = 0
 
-    return po
+#     if 'children' in f:
+#         po.type = const.TRIGGER_ACTION_FILTER_TYPE_CONTAINER
+#         po.operator = f.get('operator')
+
+#         children = f.get('children')
+#         po.children = [loadOneTriggerActionSetFilter(action, child, po) for child in children]
+#     else:
+#         po.type = const.TRIGGER_ACTION_FILTER_TYPE_CHILD
+#         po.field = f.get('field')
+#         po.operator = f.get('operator')
+#         if 'value' in f:
+#             po.value = json.dumps(f.get('value'))
+
+#     return po

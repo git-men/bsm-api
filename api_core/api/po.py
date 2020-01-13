@@ -515,7 +515,7 @@ class TriggerFilterPO:
     parent = None
     field: str = None
     operator = None
-    value: str = None
+    expression: str = None
     layer = None
     children: list = None
     real_value = None
@@ -528,16 +528,20 @@ class TriggerFilterPO:
         value = self.get_real_value()
         if isinstance(value, str):
             return value.startswith('${')
+        else:
+            return False
 
     def is_filter_param(self):
         """value按照服务端变量过滤"""
         value = self.get_real_value()
         if isinstance(value, str):
             return value.startswith('#{')
+        else:
+            return False
 
     def get_real_value(self):
         if self.real_value is None:
-            self.real_value = json.loads(self.value)
+            self.real_value = json.loads(self.expression)
         return self.real_value
 
     def __str__(self):
@@ -545,7 +549,7 @@ class TriggerFilterPO:
             self.__class__.__name__,
             self.field,
             self.operator,
-            self.value,
+            self.expression,
         )
 
 
@@ -631,8 +635,8 @@ def loadOneTriggerFilter(trigger: TriggerPO, f: TriggerFilterPO, parent=None):
         filter_po.type = const.FILTER_TYPE_CHILD
         filter_po.field = f.get('field')
         filter_po.operator = f.get('operator')
-        if 'value' in f:
-            filter_po.value = json.dumps(f.get('value'))
+        if 'expression' in f:
+            filter_po.expression = f.get('expression')
 
     return filter_po
 

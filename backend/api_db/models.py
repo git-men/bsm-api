@@ -329,7 +329,7 @@ class TriggerFilter(models.Model):
     )
     field = models.CharField('条件字段名', max_length=50, null=True)
     operator = models.CharField('条件判断符', max_length=20, null=True)
-    value = models.CharField('条件值', max_length=100, null=True)
+    expression = models.CharField('条件值', max_length=100, null=True)
     layer = models.IntegerField('嵌套层数', default=0)
 
     def __str__(self):
@@ -338,7 +338,7 @@ class TriggerFilter(models.Model):
             self.pk,
             self.field,
             self.operator,
-            self.value,
+            self.expression,
         )
 
     class Meta:

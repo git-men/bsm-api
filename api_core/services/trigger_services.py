@@ -159,7 +159,7 @@ def check_one_filter(request, f: po.TriggerFilterPO, old_inst, new_inst) -> bool
     if f.operator in const.COMPARE_OPERATOR:
         op = const.COMPARE_OPERATOR[f.operator]
         result = op(left, right)
-        # print(f'check_one_filter:{left}, {f.operator}, {right}, {result}')
+        # print(f'check_one_filter:{f}, {left}, {f.operator}, {right}, {result}')
         return result
     else:
         raise exceptions.BusinessException(
@@ -176,11 +176,11 @@ def getFilterRightValue(request, f: po.TriggerFilterPO, old_inst, new_inst):
     # print(f'getFilterRightValue:{f.is_filter_attribute()},{f.is_filter_param()}')
     if f.is_filter_attribute():
         pat = r'\${([\w\.-]+)}'
-        fields = re.findall(pat, f.value)
+        fields = re.findall(pat, f.expression)
         return getFilterValueFromInst(f, fields[0], old_inst, new_inst)
     elif f.is_filter_param():
         pat = r'#{([\w\.-]+)}'
-        params = re.findall(pat, f.value)
+        params = re.findall(pat, f.expression)
         if params[0] not in api_param.API_SERVER_PARAM:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,

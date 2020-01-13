@@ -648,8 +648,8 @@ def save_one_trigger_filter(trigger: Trigger, f: TriggerFilter, parent=None):
         filter_model.type = const.TRIGGER_FILTER_TYPE_CHILD
         filter_model.field = f.get('field')
         filter_model.operator = f.get('operator')
-        if 'value' in f:
-            filter_model.value = json.dumps(f.get('value'))
+        if 'expression' in f:
+            filter_model.expression = json.dumps(f.get('expression'))
         filter_model.save()
 
 

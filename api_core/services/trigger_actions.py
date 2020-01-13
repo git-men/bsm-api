@@ -44,12 +44,6 @@ def delete(conf, variables):
     model.objects.filter(**filters).delete()
 
 
-@reg_action
-def modify(conf, variables):
-    for field, value in convert_fields(conf['fields'], variables=variables).items():
-        setattr(variables.new, field, value)
-
-
 class Variable:
     id = None
     old = None

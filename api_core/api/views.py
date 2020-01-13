@@ -299,7 +299,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             else:
                 new_inst = serializer.save()
 
-            exists = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_BEFORE_CREATE)
+            exists = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_AFTER_CREATE)
             if exists:
                 # new_inst = instance
                 trigger_services.handle_triggers(

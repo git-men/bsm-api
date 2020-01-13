@@ -39,8 +39,12 @@ def list_trigger(app=None, model=None, event=None):
     return driver.list_trigger_config(app, model, event)
 
 
-def exists_trigger(app=None, model=None, event=None) -> bool:
-    return len(list_trigger(app, model, event)) > 0
+def exists_trigger(app=None, model=None, event=None, disable=False) -> bool:
+    """
+    """
+    triggers = list_trigger(app, model, event)
+    triggers = [t for t in triggers if t.get('disable', False) is disable]
+    return len(triggers) > 0
 
 
 def get_trigger_po(slug, config=None) -> po.TriggerPO:
@@ -74,6 +78,9 @@ def handle_triggers(request, app, model, event, old_inst=None, new_inst=None):
     try:
         trigger_list = list_trigger_po(app, model, event)
         for trigger in trigger_list:
+            if trigger.disable:
+                """此触发器已经停用"""
+                continue
             slug = trigger.slug
             if check_trigger(request, trigger, old_inst, new_inst):
                 run_trigger(request, trigger, old_inst, new_inst)

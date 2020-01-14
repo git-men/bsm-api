@@ -295,20 +295,16 @@ class Trigger(models.Model):
     '''触发器'''
 
     slug = models.SlugField('标识', max_length=50, unique=True, default=UUID)
-    app = models.CharField('app名字', max_length=50)
-    model = models.CharField('数据模型名字', max_length=50)
     name = models.CharField('名称', max_length=50, default='')
     summary = models.TextField('api说明', default='')
     event = models.CharField('操作', max_length=20, choices=const.TRIGGER_EVENT_CHOICES)
     disable = models.BooleanField('停用', default=False)
 
     def __str__(self):
-        return '%s object (%s,%s,%s,%s,%s)' % (
+        return '%s object (%s,%s,%s)' % (
             self.__class__.__name__,
             self.pk,
             self.slug,
-            self.app,
-            self.model,
             self.event,
         )
 
@@ -316,34 +312,57 @@ class Trigger(models.Model):
         verbose_name = '触发器'
         verbose_name_plural = '触发器'
 
-        index_together = [('app', 'model', 'event')]
 
+class TriggerCondition(models.Model):
+    """触发器条件"""
 
-class TriggerFilter(models.Model):
-    '''触发器条件'''
-
-    trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
-    type = models.IntegerField('条件类型', choices=const.TRIGGER_FILTER_CHOICES)
-    parent = models.ForeignKey(
-        'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
+    trigger = models.OneToOneField(
+        Trigger, models.CASCADE, verbose_name='trigger_condition'
     )
-    field = models.CharField('条件字段名', max_length=50, null=True)
-    operator = models.CharField('条件判断符', max_length=20, null=True)
-    expression = models.CharField('条件值', max_length=100, null=True)
-    layer = models.IntegerField('嵌套层数', default=0)
+    app = models.CharField('app名字', max_length=50, null=True)
+    model = models.CharField('数据模型名字', max_length=50, null=True)
+    filters = JSONField('筛选条件', default=[], blank=True)
 
     def __str__(self):
-        return '%s object (%s,%s,%s,%s)' % (
+        return '%s object (%s,%s,%s)' % (
             self.__class__.__name__,
             self.pk,
-            self.field,
-            self.operator,
-            self.expression,
+            self.app,
+            self.model,
         )
 
     class Meta:
         verbose_name = '触发器条件'
         verbose_name_plural = '触发器条件'
+
+        index_together = [('app', 'model')]
+
+
+# class TriggerFilter(models.Model):
+#     '''触发器条件'''
+
+#     trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
+#     type = models.IntegerField('条件类型', choices=const.TRIGGER_FILTER_CHOICES)
+#     parent = models.ForeignKey(
+#         'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
+#     )
+#     field = models.CharField('条件字段名', max_length=50, null=True)
+#     operator = models.CharField('条件判断符', max_length=20, null=True)
+#     expression = models.CharField('条件值', max_length=100, null=True)
+#     layer = models.IntegerField('嵌套层数', default=0)
+
+#     def __str__(self):
+#         return '%s object (%s,%s,%s,%s)' % (
+#             self.__class__.__name__,
+#             self.pk,
+#             self.field,
+#             self.operator,
+#             self.expression,
+#         )
+
+#     class Meta:
+#         verbose_name = '触发器条件'
+#         verbose_name_plural = '触发器条件'
 
 
 class TriggerAction(models.Model):

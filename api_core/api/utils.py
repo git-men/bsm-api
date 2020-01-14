@@ -24,7 +24,7 @@ class APIDriver:
     def get_trigger_config(self, slug):
         pass
 
-    def list_trigger_config(self, app=None, model=None, event=None):
+    def list_trigger_config(self, event=None, *args, **kwargs):
         pass
 
     def add_trigger(self, config):
@@ -185,9 +185,10 @@ def get_api_driver() -> APIDriver:
 
 
 def format_trigger_config(config):
-    config['triggerfilter'] = format_trigger_filter_config(
-        config.get('triggerfilter'), True
-    )
+    pass
+    # config['triggerfilter'] = format_trigger_filter_config(
+    #     config.get('triggerfilter'), True
+    # )
     # actions = config.get('triggeraction', [])
     # for action in actions:
     #     action['triggeractionfilter'] = format_trigger_action_filter_config(

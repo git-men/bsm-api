@@ -18,7 +18,8 @@ from api_core.api import utils
 from api_db import models
 from api_db.models import Api, Parameter, DisplayField, SetField, Filter
 from api_db.models import Trigger
-from api_db.models import TriggerFilter
+from api_db.models import TriggerCondition
+# from api_db.models import TriggerFilter
 from api_db.models import TriggerAction
 
 
@@ -480,19 +481,21 @@ def get_trigger_config(slug):
             error_code=exceptions.OBJECT_NOT_FOUND, error_data=f'找不到对应的trigger：{slug}'
         )
     expand_fields = [
-        'triggerfilter_set',
+        'triggercondition',
+        # 'triggerfilter_set',
         'triggeraction_set',
         # 'triggeraction_set.triggeractionset_set',
         # 'triggeraction_set.triggeractionfilter_set'
     ]
     exclude_fields = {
-        'api_db__triggerfilter': ['id', 'trigger', 'layer'],
+        'api_db__triggercondition': ['id', 'trigger', 'layer'],
+        # 'api_db__triggerfilter': ['id', 'trigger', 'layer'],
         'api_db__triggeraction': ['id', 'trigger'],
         # 'api_db__triggeractionset': ['id', 'action'],
         # 'api_db__triggeractionfilter': ['id', 'action', 'layer'],
     }
     
-    expand_trigger_filter(trigger, expand_fields)
+    # expand_trigger_filter(trigger, expand_fields)
     # expand_trigger_action_filter(trigger, expand_fields)
 
     serializer_class = multiple_create_serializer_class(
@@ -507,14 +510,14 @@ def get_trigger_config(slug):
     return config
 
 
-def expand_trigger_filter(trigger, expand_fields):
-    max_layer = TriggerFilter.objects.filter(trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
-    max_layer = max_layer or 0
-    for i in range(max_layer):
-        if i == 0:
-            expand_fields.append('triggerfilter_set.children')
-        else:
-            expand_fields.append(expand_fields[-1] + '.children')
+# def expand_trigger_filter(trigger, expand_fields):
+#     max_layer = TriggerFilter.objects.filter(trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
+#     max_layer = max_layer or 0
+#     for i in range(max_layer):
+#         if i == 0:
+#             expand_fields.append('triggerfilter_set.children')
+#         else:
+#             expand_fields.append(expand_fields[-1] + '.children')
 
 
 # def expand_trigger_action_filter(trigger, expand_fields):
@@ -525,25 +528,6 @@ def expand_trigger_filter(trigger, expand_fields):
 #             expand_fields.append('triggeraction_set.triggeractionfilter_set.children')
 #         else:
 #             expand_fields.append(expand_fields[-1] + '.children')
-
-
-def list_trigger_config(app=None, model=None, event=None):
-    if app:
-        if model:
-            if event:
-                apis = Trigger.objects.filter(app=app, model=model, event=event).values('slug').all()
-            else:
-                apis = Trigger.objects.filter(app=app, model=model).values('slug').all()
-        else:
-            apis = Trigger.objects.filter(app=app).values('slug').all()
-    else:
-        apis = Trigger.objects.values('slug').all()
-    results = []
-    for api in apis:
-        r = get_trigger_config(api['slug'])
-        results.append(r)
-
-    return results
 
 
 def add_trigger(config):
@@ -583,16 +567,6 @@ def save_trigger(config, id=None):
             trigger = Trigger.objects.get(id=id)
             is_create = False
 
-        trigger.app = config.get('app')
-        trigger.model = config.get('model')
-        try:
-            model_class = apps.get_model(trigger.app, trigger.model)
-        except LookupError:
-            raise exceptions.BusinessException(
-                error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                error_data=f'{trigger.app}__{trigger.model} 不是有效的model',
-            )
-
         if 'name' in config:
             """如果没有就用默认值"""
             trigger.name = config['name']
@@ -614,43 +588,65 @@ def save_trigger(config, id=None):
 
         trigger.save()
 
-        save_trigger_filter(trigger, config.get('triggerfilter'), is_create)
+        # save_trigger_filter(trigger, config.get('triggerfilter'), is_create)
+        save_trigger_condition(trigger, config.get('triggercondition'), is_create)
         save_trigger_action(trigger, config.get('triggeraction'), is_create)
 
         trigger_cache.delete_config(trigger.slug)
 
 
-def save_trigger_filter(trigger: Trigger, filters, is_create):
-    if not is_create:
-        TriggerFilter.objects.filter(trigger__id=trigger.id).delete()
-
-    for f in filters:
-        save_one_trigger_filter(trigger, f)
-
-
-def save_one_trigger_filter(trigger: Trigger, f: TriggerFilter, parent=None):
-    filter_model = TriggerFilter()
-    filter_model.trigger = trigger
-    if parent:
-        filter_model.parent = parent
-        filter_model.layer = parent.layer + 1
+def save_trigger_condition(trigger: Trigger, condition: dict, is_create):
+    if hasattr(trigger, 'triggercondition'):
+        condition_model = trigger.triggercondition
     else:
-        filter_model.layer = 0
-    if 'children' in f:
-        filter_model.type = const.TRIGGER_FILTER_TYPE_CONTAINER
-        filter_model.operator = f.get('operator')
-        filter_model.save()
+        condition_model = TriggerCondition()
+        condition_model.trigger = trigger
 
-        children = f.get('children', [])
-        for child in children:
-            save_one_trigger_filter(trigger, child, filter_model)
-    else:
-        filter_model.type = const.TRIGGER_FILTER_TYPE_CHILD
-        filter_model.field = f.get('field')
-        filter_model.operator = f.get('operator')
-        if 'expression' in f:
-            filter_model.expression = json.dumps(f.get('expression'))
-        filter_model.save()
+    for attr, value in condition.items():
+        if hasattr(condition_model, attr):
+            setattr(condition_model, attr, value)
+    condition_model.save()
+
+    try:
+        apps.get_model(condition_model.app, condition_model.model)
+    except LookupError:
+        raise exceptions.BusinessException(
+            error_code=exceptions.PARAMETER_FORMAT_ERROR,
+            error_data=f'{condition_model.app}__{condition_model.model} 不是有效的model',
+        )
+
+
+# def save_trigger_filter(trigger: Trigger, filters, is_create):
+#     if not is_create:
+#         TriggerFilter.objects.filter(trigger__id=trigger.id).delete()
+
+#     for f in filters:
+#         save_one_trigger_filter(trigger, f)
+
+
+# def save_one_trigger_filter(trigger: Trigger, f: TriggerFilter, parent=None):
+#     filter_model = TriggerFilter()
+#     filter_model.trigger = trigger
+#     if parent:
+#         filter_model.parent = parent
+#         filter_model.layer = parent.layer + 1
+#     else:
+#         filter_model.layer = 0
+#     if 'children' in f:
+#         filter_model.type = const.TRIGGER_FILTER_TYPE_CONTAINER
+#         filter_model.operator = f.get('operator')
+#         filter_model.save()
+
+#         children = f.get('children', [])
+#         for child in children:
+#             save_one_trigger_filter(trigger, child, filter_model)
+#     else:
+#         filter_model.type = const.TRIGGER_FILTER_TYPE_CHILD
+#         filter_model.field = f.get('field')
+#         filter_model.operator = f.get('operator')
+#         if 'expression' in f:
+#             filter_model.expression = json.dumps(f.get('expression'))
+#         filter_model.save()
 
 
 def save_trigger_action(trigger: Trigger, actions, is_create):
@@ -745,8 +741,19 @@ class DBDriver(utils.APIDriver):
     def get_trigger_config(self, slug):
         return get_trigger_config(slug)
 
-    def list_trigger_config(self, app=None, model=None, event=None):
-        return list_trigger_config(app, model, event)
+    def list_trigger_config(self, event=None, *args, **kwargs):
+        kw = {f'triggercondition__{k}': v for k, v in kwargs.items()}
+        print(f'list_trigger_config:{kw}')
+        if event:
+            apis = Trigger.objects.filter(event=event, **kw).values('slug').all()
+        else:
+            apis = Trigger.objects.filter(**kw).values('slug').all()
+        results = []
+        for api in apis:
+            r = get_trigger_config(api['slug'])
+            results.append(r)
+
+        return results
 
     def add_trigger(self, config):
         add_trigger(config)

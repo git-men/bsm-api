@@ -195,7 +195,7 @@ def check_one_filter(
 
 
 def getFilterLeftValue(request, trigger_po: po.TriggerPO, f: dict, old_inst, new_inst):
-    return getFilterValueFromInst(trigger_po, f['field'], old_inst, new_inst)
+    return getFilterValue(request, trigger_po, f['field'], old_inst, new_inst)
 
 
 def getFilterRightValue(request, trigger_po: po.TriggerPO, f: dict, old_inst, new_inst):

@@ -24,6 +24,9 @@ class APIDriver:
     def get_trigger_config(self, slug):
         pass
 
+    def get_trigger_config_by_id(self, id):
+        pass
+
     def list_trigger_config(self, event=None, *args, **kwargs):
         pass
 

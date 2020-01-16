@@ -55,7 +55,8 @@ def add_trigger(user, config, **kwargs):
 @bsm_func(staff_required=True, name='update_trigger', model=Trigger)
 def update_api(user, id, config, **kwargs):
     trigger_services.update_trigger(id, config)
-    return trigger_services.get_trigger_config(config.get('slug', ''))
+    trigger = Trigger.objects.get(id=id)
+    return trigger_services.get_trigger_config(trigger.slug)
 
 
 @bsm_func(staff_required=True, name='save_trigger', model=Trigger)

@@ -10,6 +10,8 @@ from ..api import const
 from ..api import po
 from ..api import utils
 
+from .trigger_actions import run_action
+
 log = logging.getLogger('django')
 
 
@@ -34,15 +36,16 @@ def get_trigger_config(slug):
     return config
 
 
-def list_trigger(app=None, model=None, event=None):
+def list_trigger(event=None, *args, **kwargs):
+    # print(f'list_trigger:{event},{kwargs}')
     driver = utils.get_api_driver()
-    return driver.list_trigger_config(app, model, event)
+    return driver.list_trigger_config(event, *args, **kwargs)
 
 
-def exists_trigger(app=None, model=None, event=None, disable=False) -> bool:
+def exists_trigger(event=None, disable=False, *args, **kwargs) -> bool:
     """
     """
-    triggers = list_trigger(app, model, event)
+    triggers = list_trigger(event, *args, **kwargs)
     triggers = [t for t in triggers if t.get('disable', False) is disable]
     return len(triggers) > 0
 
@@ -59,8 +62,8 @@ def get_trigger_po(slug, config=None) -> po.TriggerPO:
     return trigger
 
 
-def list_trigger_po(app=None, model=None, event=None) -> list:
-    trigger_list = list_trigger(app, model, event)
+def list_trigger_po(event=None, *args, **kwargs) -> list:
+    trigger_list = list_trigger(event, *args, **kwargs)
     po_list = []
     for config in trigger_list:
         slug = ''
@@ -73,49 +76,68 @@ def list_trigger_po(app=None, model=None, event=None) -> list:
     return po_list
 
 
-def handle_triggers(request, app, model, event, old_inst=None, new_inst=None):
+def handle_triggers(
+    request, event, id=None, old_inst=None, new_inst=None, *args, **kwargs
+):
     slug = ''
     try:
-        trigger_list = list_trigger_po(app, model, event)
+        trigger_list = list_trigger_po(event, *args, **kwargs)
         for trigger in trigger_list:
             if trigger.disable:
                 """此触发器已经停用"""
                 continue
             slug = trigger.slug
             if check_trigger(request, trigger, old_inst, new_inst):
-                run_trigger(request, trigger, old_inst, new_inst)
+                run_trigger(request, trigger, id, old_inst, new_inst)
     except exceptions.BusinessException as e:
         print(
-            f'事件 {app}.{model}.{event}.{slug} 的触发器有异常:'
-            + str(e)
-            + ","
-            + traceback.format_exc()
+            f'事件 {event}.{slug}:{kwargs} 的触发器有异常:' + str(e) + "," + traceback.format_exc()
         )
         raise e
     except Exception as e:
         print(
-            f'事件 {app}.{model}.{event}.{slug} 的触发器有异常:'
-            + str(e)
-            + ","
-            + traceback.format_exc()
+            f'事件 {event}.{slug}:{kwargs} 的触发器有异常:' + str(e) + "," + traceback.format_exc()
         )
         raise exceptions.BusinessException(
             error_code=exceptions.TRIGGER_ERROR,
-            error_data=f'事件 {app}.{model}.{event}.{slug} 的触发器有异常',
+            error_data=f'事件 {event}.{slug}:{kwargs} 的触发器有异常',
         )
 
 
-def check_trigger(request, trigger_po, old_inst, new_inst) -> bool:
-    filters = trigger_po.triggerfilter
-    result = check_filters(request, filters, old_inst, new_inst)
-    print(f'check_trigger:{result}')
+def is_container_config(filter_config: dict):
+    return 'children' in filter_config
+
+
+def is_filter_attribute(value):
+    """value按照属性过滤"""
+    if isinstance(value, str):
+        return value.startswith('${')
+    else:
+        return False
+
+
+def is_filter_param(value):
+    """value按照服务端变量过滤"""
+    if isinstance(value, str):
+        return value.startswith('#{')
+    else:
+        return False
+
+
+def check_trigger(request, trigger_po: po.TriggerPO, old_inst, new_inst) -> bool:
+    condition = trigger_po.triggercondition
+    # print(f'check_trigger:{condition},{condition.filters}')
+    result = check_filters(request, trigger_po, condition.filters, old_inst, new_inst)
     return result
 
 
-def check_filters(request, filters: list, old_inst, new_inst, conn='and') -> bool:
+def check_filters(
+    request, trigger_po: po.TriggerPO, filters: list, old_inst, new_inst, conn='and'
+) -> bool:
     """
     conn:Connection types 条件关联逻辑，AND和OR 两种，第一层默认为and
     """
+    # print(f'check_filters:{filters}')
     conn = conn.lower()
     if conn == 'and':
         is_and = True
@@ -126,14 +148,17 @@ def check_filters(request, filters: list, old_inst, new_inst, conn='and') -> boo
             error_code=exceptions.PARAMETER_FORMAT_ERROR,
             error_data=f'条件关联逻辑只有 and 和 or, 没有 {conn}',
         )
-    for f in filters:
-        f: po.TriggerFilterPO
-        if f.is_container():
-            result = check_filters(request, f.children, old_inst, new_inst, f.operator)
-        else:
-            result = check_one_filter(request, f, old_inst, new_inst)
 
-        print(f'check_filters:{f}, {result}')
+    for f in filters:
+        f: dict
+        if is_container_config(f):
+            result = check_filters(
+                request, trigger_po, f['children'], old_inst, new_inst, f['operator']
+            )
+        else:
+            result = check_one_filter(request, trigger_po, f, old_inst, new_inst)
+
+        # print(f'check_filters:{f}, {result}')
 
         if is_and and (not result):
             """与逻辑，遇假得假"""
@@ -151,14 +176,16 @@ def check_filters(request, filters: list, old_inst, new_inst, conn='and') -> boo
         return False
 
 
-def check_one_filter(request, f: po.TriggerFilterPO, old_inst, new_inst) -> bool:
-    left = getFilterLeftValue(f, old_inst, new_inst)
-    right = getFilterRightValue(request, f, old_inst, new_inst)
+def check_one_filter(
+    request, trigger_po: po.TriggerPO, f: dict, old_inst, new_inst
+) -> bool:
+    left = getFilterLeftValue(request, trigger_po, f, old_inst, new_inst)
+    right = getFilterRightValue(request, trigger_po, f, old_inst, new_inst)
 
-    if f.operator in const.COMPARE_OPERATOR:
-        op = const.COMPARE_OPERATOR[f.operator]
+    if f['operator'] in const.COMPARE_OPERATOR:
+        op = const.COMPARE_OPERATOR[f['operator']]
         result = op(left, right)
-        print(f'check_one_filter:{left}, {f.operator}, {right}, {result}')
+        # print(f'check_one_filter:{f}, {left}, {f.operator}, {right}, {result}')
         return result
     else:
         raise exceptions.BusinessException(
@@ -167,19 +194,22 @@ def check_one_filter(request, f: po.TriggerFilterPO, old_inst, new_inst) -> bool
         )
 
 
-def getFilterLeftValue(f: po.TriggerFilterPO, old_inst, new_inst):
-    return getFilterValueFromInst(f, f.field, old_inst, new_inst)
+def getFilterLeftValue(request, trigger_po: po.TriggerPO, f: dict, old_inst, new_inst):
+    return getFilterValue(request, trigger_po, f['field'], old_inst, new_inst)
 
 
-def getFilterRightValue(request, f: po.TriggerFilterPO, old_inst, new_inst):
-    print(f'getFilterRightValue:{f.is_filter_attribute()},{f.is_filter_param()}')
-    if f.is_filter_attribute():
+def getFilterRightValue(request, trigger_po: po.TriggerPO, f: dict, old_inst, new_inst):
+    return getFilterValue(request, trigger_po, f.get('expression'), old_inst, new_inst)
+
+
+def getFilterValue(request, trigger_po: po.TriggerPO, value, old_inst, new_inst):
+    if is_filter_attribute(value):
         pat = r'\${([\w\.-]+)}'
-        fields = re.findall(pat, f.value)
-        return getFilterValueFromInst(f, fields[0], old_inst, new_inst)
-    elif f.is_filter_param():
+        fields = re.findall(pat, value)
+        return getFilterValueFromInst(trigger_po, fields[0], old_inst, new_inst)
+    elif is_filter_param(value):
         pat = r'#{([\w\.-]+)}'
-        params = re.findall(pat, f.value)
+        params = re.findall(pat, value)
         if params[0] not in api_param.API_SERVER_PARAM:
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
@@ -188,13 +218,13 @@ def getFilterRightValue(request, f: po.TriggerFilterPO, old_inst, new_inst):
         f = api_param.API_SERVER_PARAM[params[0]]
         return f(request)
     else:
-        return f.get_real_value()
+        return value
 
 
-def getFilterValueFromInst(f: po.TriggerFilterPO, field: str, old_inst, new_inst):
+def getFilterValueFromInst(trigger_po: po.TriggerPO, field: str, old_inst, new_inst):
     attr = field.split('.')
     if attr[0] == const.OLD_INSTANCE:
-        if f.trigger.is_create():
+        if trigger_po.is_create():
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'新建操作的触发器不支持old_inst',
@@ -202,7 +232,7 @@ def getFilterValueFromInst(f: po.TriggerFilterPO, field: str, old_inst, new_inst
 
         inst = old_inst
     elif attr[0] == const.NEW_INSTANCE:
-        if f.trigger.is_delete():
+        if trigger_po.is_delete():
             raise exceptions.BusinessException(
                 error_code=exceptions.PARAMETER_FORMAT_ERROR,
                 error_data=f'删除操作的触发器不支持new_inst',
@@ -217,10 +247,8 @@ def getFilterValueFromInst(f: po.TriggerFilterPO, field: str, old_inst, new_inst
     return getattr(inst, attr[1])
 
 
-def getFilterValueFromJson(s):
-    return json.loads(s)
-
-
-def run_trigger(request, trigger_po, old_inst, new_inst):
-    print(f'run_trigger:{trigger_po}')
+def run_trigger(request, trigger_po: po.TriggerActionPO, id, old_inst, new_inst):
+    print(f'run_trigger:{id}')
+    for action in trigger_po.triggeraction:
+        run_action(action.config, id=id, old=old_inst, new=new_inst, user=request.user)
 

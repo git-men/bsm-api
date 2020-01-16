@@ -3,24 +3,47 @@
         "app": "api_db",
         "demo": "",
         "disable": false,
-        "displayfield": [],
+        "displayfield": [
+            "app",
+            "id",
+            "model",
+            "slug"
+        ],
         "expand_fields": [],
         "filter": [],
         "func_name": "list_api",
+        "groups": [],
         "logined": true,
         "model": "api",
         "name": "",
-        "operation": "func",
+        "operation": "list",
         "ordering": [
             "-id"
         ],
-        "parameter": [],
+        "parameter": [
+            {
+                "default": 1,
+                "desc": "",
+                "is_array": false,
+                "name": "page",
+                "required": true,
+                "type": "PAGE_IDX"
+            },
+            {
+                "default": 10,
+                "desc": "",
+                "is_array": false,
+                "name": "size",
+                "required": true,
+                "type": "PAGE_SIZE"
+            }
+        ],
         "permission": {
             "group": []
         },
         "setfield": [],
         "slug": "list_api",
-        "summary": "查看所有api"
+        "summary": "查询api"
     },
     {
         "app": "api_db",
@@ -30,6 +53,7 @@
         "expand_fields": [],
         "filter": [],
         "func_name": "show_api",
+        "groups": [],
         "logined": true,
         "model": "api",
         "name": "",
@@ -68,6 +92,7 @@
         "expand_fields": [],
         "filter": [],
         "func_name": "",
+        "groups": [],
         "logined": true,
         "model": "api",
         "name": "",

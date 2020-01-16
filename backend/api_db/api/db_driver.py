@@ -1,5 +1,6 @@
 # import logging
 import json
+import uuid
 from django.db.models import Max
 from django.db import transaction
 from django.apps import apps
@@ -11,16 +12,17 @@ from api_basebone.core import exceptions
 # from api_basebone.export.fields import get_model_field_config
 from api_basebone.restful.serializers import multiple_create_serializer_class
 from api_core.api.cache import api_cache
+from api_core.api.cache import trigger_cache
 from api_core.api import const
 from api_core.api import utils
 
+from api_db import models
 from api_db.models import Api, Parameter, DisplayField, SetField, Filter
-
-"""add_api"""
-"""update_api"""
-"""save_api"""
-"""get_api_config"""
-"""list_api_config"""
+from api_db.models import Trigger
+from api_db.models import TriggerFilter
+from api_db.models import TriggerAction
+from api_db.models import TriggerActionSet
+from api_db.models import TriggerActionFilter
 
 
 def add_api(config):
@@ -459,12 +461,293 @@ def get_set_field_json(api):
 
 def list_api_config(app=None):
     if app:
-        apis = Api.objects.filter(app=app).all()
+        apis = Api.objects.filter(app=app).values('slug').all()
     else:
-        apis = Api.objects.all()
+        apis = Api.objects.values('slug').all()
     results = []
     for api in apis:
-        r = get_api_config(api.slug)
+        r = get_api_config(api['slug'])
         results.append(r)
 
     return results
+
+
+def get_trigger_config(slug):
+    config = trigger_cache.get_config(slug)
+    if config:
+        config = json.loads(config)
+        return config
+    trigger = Trigger.objects.filter(slug=slug).first()
+    if not trigger:
+        raise exceptions.BusinessException(
+            error_code=exceptions.OBJECT_NOT_FOUND, error_data=f'找不到对应的trigger：{slug}'
+        )
+    expand_fields = ['triggeraction_set', 'triggeraction_set.triggeractionset_set', 'triggerfilter_set',
+        'triggeraction_set.triggeractionfilter_set']
+    exclude_fields = {
+        'api_db__triggeraction': ['id', 'trigger'],
+        'api_db__triggeractionset': ['id', 'action'],
+        'api_db__triggerfilter': ['id', 'trigger', 'layer'],
+        'api_db__triggeractionfilter': ['id', 'action', 'layer'],
+    }
+    
+    expand_trigger_filter(trigger, expand_fields)
+    expand_trigger_action_filter(trigger, expand_fields)
+
+    serializer_class = multiple_create_serializer_class(
+        Trigger, expand_fields=expand_fields, exclude_fields=exclude_fields
+    )
+    serializer = serializer_class(trigger)
+    config = serializer.data
+
+    utils.format_trigger_config(config)
+
+    trigger_cache.set_config(slug, json.dumps(config))
+    return config
+
+
+def expand_trigger_filter(trigger, expand_fields):
+    max_layer = TriggerFilter.objects.filter(trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
+    for i in range(max_layer):
+        if i == 0:
+            expand_fields.append('triggerfilter_set.children')
+        else:
+            expand_fields.append(expand_fields[-1] + '.children')
+
+
+def expand_trigger_action_filter(trigger, expand_fields):
+    max_layer = TriggerActionFilter.objects.filter(action__trigger__id=trigger.id).aggregate(max=Max('layer'))['max']
+    for i in range(max_layer):
+        if i == 0:
+            expand_fields.append('triggeraction_set.triggeractionfilter_set.children')
+        else:
+            expand_fields.append(expand_fields[-1] + '.children')
+
+
+def list_trigger_config(app=None, model=None, event=None):
+    if app:
+        if model:
+            if event:
+                apis = Trigger.objects.filter(app=app, model=model, event=event).values('slug').all()
+            else:
+                apis = Trigger.objects.filter(app=app, model=model).values('slug').all()
+        else:
+            apis = Trigger.objects.filter(app=app).values('slug').all()
+    else:
+        apis = Trigger.objects.values('slug').all()
+    results = []
+    for api in apis:
+        r = get_trigger_config(api['slug'])
+        results.append(r)
+
+    return results
+
+
+def add_trigger(config):
+    """新建触发器"""
+    slug = config.get('slug')
+    if not slug:
+        slug = models.UUID()
+        config['slug'] = slug
+    api = Trigger.objects.filter(slug=slug).first()
+    if api:
+        raise exceptions.BusinessException(error_code=exceptions.SLUG_EXISTS)
+
+    save_trigger(config)
+
+
+def update_trigger(id, config):
+    """更新触发器"""
+    save_trigger(config, id)
+
+
+def save_trigger(config, id=None):
+    """触发器配置信息保存到数据库"""
+    with transaction.atomic():
+        if id is None:
+            slug = config.get('slug')
+            if not slug:
+                slug = models.UUID()
+                config['slug'] = slug
+            trigger = Trigger.objects.filter(slug=slug).first()
+            if not trigger:
+                trigger = Trigger()
+                trigger.slug = slug
+                is_create = True
+            else:
+                is_create = False
+        else:
+            trigger = Trigger.objects.get(id=id)
+            is_create = False
+
+        trigger.app = config.get('app')
+        trigger.model = config.get('model')
+        try:
+            model_class = apps.get_model(trigger.app, trigger.model)
+        except LookupError:
+            raise exceptions.BusinessException(
+                error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                error_data=f'{trigger.app}__{trigger.model} 不是有效的model',
+            )
+
+        if 'name' in config:
+            """如果没有就用默认值"""
+            trigger.name = config['name']
+
+        if 'summary' in config:
+            """如果没有就用默认值"""
+            trigger.summary = config['summary']
+
+        if 'disable' in config:
+            """如果没有就用默认值"""
+            trigger.disable = config['disable']
+
+        trigger.event = config['event']
+        if trigger.event not in const.TRIGGER_EVENTS:
+            raise exceptions.BusinessException(
+                error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                error_data=f'\'operation\': {trigger.event} 不是合法的触发器事件',
+            )
+
+        trigger.save()
+
+        save_trigger_filter(trigger, config.get('triggerfilter'), is_create)
+        save_trigger_action(trigger, config.get('triggeraction'), is_create)
+
+        trigger_cache.delete_config(trigger.slug)
+
+
+def save_trigger_filter(trigger: Trigger, filters, is_create):
+    if not is_create:
+        TriggerFilter.objects.filter(trigger__id=trigger.id).delete()
+
+    for f in filters:
+        save_one_trigger_filter(trigger, f)
+
+
+def save_one_trigger_filter(trigger: Trigger, f: TriggerFilter, parent=None):
+    filter_model = TriggerFilter()
+    filter_model.trigger = trigger
+    if parent:
+        filter_model.parent = parent
+        filter_model.layer = parent.layer + 1
+    else:
+        filter_model.layer = 0
+    if 'children' in f:
+        filter_model.type = const.TRIGGER_FILTER_TYPE_CONTAINER
+        filter_model.operator = f.get('operator')
+        filter_model.save()
+
+        children = f.get('children', [])
+        for child in children:
+            save_one_trigger_filter(trigger, child, filter_model)
+    else:
+        filter_model.type = const.TRIGGER_FILTER_TYPE_CHILD
+        filter_model.field = f.get('field')
+        filter_model.operator = f.get('operator')
+        if 'value' in f:
+            filter_model.value = json.dumps(f.get('value'))
+        filter_model.save()
+
+
+def save_trigger_action(trigger: Trigger, actions, is_create):
+    if not is_create:
+        TriggerAction.objects.filter(trigger__id=trigger.id).delete()
+
+    for action in actions:
+        action_model = TriggerAction()
+        action_model.trigger = trigger
+        action_model.action = action['action']
+        if action_model.action not in const.TRIGGER_ACTIONS:
+            raise exceptions.BusinessException(
+                error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                error_data=f'\'operation\': {trigger.event} 不是合法的触发器行为',
+            )
+        action_model.save()
+
+        if 'triggeractionset' in action:
+            save_trigger_action_set(action_model, action['triggeractionset'], is_create)
+
+        if 'triggeractionfilter' in action:
+            save_trigger_action_filters(action_model, action['triggeractionfilter'], is_create)
+
+
+def save_trigger_action_set(action, sets, is_create):
+    if not is_create:
+        TriggerActionSet.objects.filter(action__id=action.id).delete()
+
+    for s in sets:
+        set_model = TriggerActionSet()
+        set_model.action = action
+        set_model.field = s['field']
+        set_model.value = s['value']
+        set_model.save()
+
+
+def save_trigger_action_filters(action: TriggerAction, filters: list, is_create):
+    if not is_create:
+        TriggerActionFilter.objects.filter(action__id=action.id).delete()
+
+    for f in filters:
+        save_one_trigger_action_filter(action, f)
+
+
+def save_one_trigger_action_filter(action: TriggerAction, f: TriggerActionFilter, parent=None):
+    filter_model = TriggerActionFilter()
+    filter_model.action = action
+    if parent:
+        filter_model.parent = parent
+        filter_model.layer = parent.layer + 1
+    else:
+        filter_model.layer = 0
+
+    if 'children' in f:
+        filter_model.type = const.TRIGGER_ACTION_FILTER_TYPE_CONTAINER
+        filter_model.operator = f.get('operator')
+        filter_model.save()
+
+        children = f.get('children')
+        for child in children:
+            save_one_trigger_action_filter(action, child, filter_model)
+    else:
+        filter_model.type = const.TRIGGER_ACTION_FILTER_TYPE_CHILD
+        filter_model.field = f.get('field')
+        filter_model.operator = f.get('operator')
+        if 'value' in f:
+            filter_model.value = json.dumps(f.get('value'))
+        filter_model.save()
+
+
+class DBDriver(utils.APIDriver):
+    def add_api(self, config):
+        add_api(config)
+
+    def update_api(self, id, config):
+        update_api(id, config)
+
+    def save_api(self, config, id=None):
+        save_api(config, id)
+
+    def get_api_config(self, slug):
+        return get_api_config(slug)
+
+    def list_api_config(self, app=None):
+        return list_api_config(app)
+
+    def get_trigger_config(self, slug):
+        return get_trigger_config(slug)
+
+    def list_trigger_config(self, app=None, model=None, event=None):
+        return list_trigger_config(app, model, event)
+
+    def add_trigger(self, config):
+        add_trigger(config)
+
+    def update_trigger(self, id, config):
+        update_trigger(id, config)
+
+    def save_trigger(self, config, id=None):
+        save_trigger(config, id)
+
+
+driver = DBDriver()

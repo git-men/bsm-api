@@ -2,24 +2,22 @@ import logging
 import json
 import os
 import traceback
+import operator
+from functools import reduce
 from django.utils import timezone
 from django.conf import settings
 from django.apps import apps
 
-# from api_basebone.core import exceptions
+from api_basebone.core import exceptions
 
-# from .. import utils
-
-"""save_api"""
-"""get_api_config"""
-"""list_api_config"""
-
+from api_core.api.utils import APIDriver
 
 log = logging.getLogger('django')
 
 # API_DATA[app][slug]
 API_DATA = {}
-LOAD_TIME = {}
+# API_LOAD_TIME {app:time}
+API_LOAD_TIME = {}
 
 
 def load_api_data(app, slug, config):
@@ -28,7 +26,7 @@ def load_api_data(app, slug, config):
     if app not in API_DATA:
         API_DATA[app] = {}
 
-    LOAD_TIME[app] = timezone.now()
+    API_LOAD_TIME[app] = timezone.now()
 
     if 'slug' in config:
         slug = config['slug']
@@ -45,9 +43,9 @@ def load_api_js(app=None):
 
     for app in load_apps:
         try:
-            if app in LOAD_TIME:
+            if app in API_LOAD_TIME:
                 now = timezone.now()
-                delta = now - LOAD_TIME[app]
+                delta = now - API_LOAD_TIME[app]
                 cache_time = getattr(settings, 'API_CACHE_TIME', 1 * 60)
                 cache_time = int(cache_time)
                 if delta.total_seconds() < cache_time:
@@ -84,41 +82,168 @@ def load_api_js(app=None):
             print()
 
 
-# load_all_api_js()
+# TRIGGER_DATA[slug] = config
+TRIGGER_DATA = {}
+# TRIGGER_IDX[app][model][event] = [slug1,slug2...]
+TRIGGER_IDX = {}
+# TRIGGER_LOAD_TIME {app:time}
+TRIGGER_LOAD_TIME = {}
 
 
-# def save_api(config):
-#     """api配置信息保存到数据库"""
-#     raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+def load_trigger_data(app, config):
+    global TRIGGER_DATA
+
+    if app not in TRIGGER_IDX:
+        TRIGGER_IDX[app] = {}
+
+    model = config['model']
+    if model not in TRIGGER_IDX[app]:
+        TRIGGER_IDX[app][model] = {}
+
+    event = config['event']
+    if event not in TRIGGER_IDX[app][model]:
+        TRIGGER_IDX[app][model][event] = []
+
+    slug = config['slug']
+    if slug not in TRIGGER_DATA:
+        TRIGGER_DATA[slug] = {}
+
+    TRIGGER_DATA[slug] = config
+    if slug not in TRIGGER_IDX[app][model][event]:
+        TRIGGER_IDX[app][model][event].append(slug)
 
 
-def get_api_config(slug, app=None):
+def load_trigger_js(app=None):
     if app:
-        apps = [app]
+        load_apps = [app]
     else:
+        load_apps = getattr(settings, 'API_APPS', None)
+        load_apps = list(set(load_apps))
+
+    for app in load_apps:
+        try:
+            if app in TRIGGER_LOAD_TIME:
+                now = timezone.now()
+                delta = now - TRIGGER_LOAD_TIME[app]
+                cache_time = getattr(settings, 'API_CACHE_TIME', 1 * 60)
+                cache_time = int(cache_time)
+                if delta.total_seconds() < cache_time:
+                    """缓存时间未过"""
+                    continue
+
+            app_config = apps.get_app_config(app)
+            path = app_config.module.__path__[0] + '/trigger_config.json'
+            if not os.path.isfile(path):
+                # print(f"{app}没有API_CONFIGS")
+                continue
+            with open(path, 'r', encoding='utf-8') as f:
+                s = f.read()
+                config_list = json.loads(s)
+
+                # print(f'-------------------开始加载 app：{app} 的api配置 ------------------')
+                slug_list = []
+                for config in config_list:
+                    slug = ''
+                    try:
+                        slug = config['slug']
+                        load_trigger_data(app, config)
+                        slug_list.append(slug)
+                    except Exception as api_error:
+                        print('导出 trigger {} 异常： {}'.format(slug, traceback.format_exc()))
+                TRIGGER_LOAD_TIME[app] = timezone.now()
+                # print(f'------------------- 加载 api 配置完成 ----------------------------')
+                # print(f'加载 api {app} 配置完成:{slug_list}')
+                # print()
+        except Exception as e:
+            print('加载 trigger 异常： {}'.format(str(e)))
+            print()
+
+
+def get_trigger_config(slug):
+    load_trigger_js()
+    return TRIGGER_DATA.get(slug)
+
+
+class JSDriver(APIDriver):
+    def add_api(self, config):
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+
+    def update_api(self, id, config):
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+
+    def save_api(self, config, id=None):
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_API)
+
+    def get_api_config(self, slug, app=None):
+        if app:
+            load_api_js(app)
+            apps = [app]
+        else:
+            load_api_js()
+            global API_DATA
+            apps = API_DATA.keys()
+
+        for app in apps:
+            if slug in API_DATA[app]:
+                config = API_DATA[app][slug]
+                return config
+
+        return None
+
+    def list_api_config(self, app=None):
         global API_DATA
-        apps = API_DATA.keys()
-    for app in apps:
-        load_api_js(app)
-        if slug in API_DATA[app]:
-            config = API_DATA[app][slug]
-            # utils.format_api_config(config)
-            return config
+        if app:
+            apps = [app]
+        else:
+            apps = API_DATA.keys()
+        results = []
+        for app in apps:
+            for slug in API_DATA[app].keys():
+                r = self.get_api_config(slug, app)
+            results.append(r)
+            results.extend(API_DATA[app].values())
 
-    return None
+        return results
+
+    def get_trigger_config(self, slug):
+        return get_trigger_config(slug)
+
+    def list_trigger_config(self, app=None, model=None, event=None):
+        load_trigger_js(app)
+        if app:
+            if app not in TRIGGER_IDX:
+                return []
+
+            if model:
+                if model not in TRIGGER_IDX[app]:
+                    return []
+
+                if event:
+                    if event not in TRIGGER_IDX[app][model]:
+                        return []
+
+                    slug_list = TRIGGER_IDX[app][model][event]
+                else:
+                    slug_list = reduce(operator.add, TRIGGER_IDX[app][model].values())
+            else:
+                slug_list = []
+                for model, events in TRIGGER_IDX[app].items():
+                    slug_list.extend(reduce(operator.add, events.values()))
+        else:
+            slug_list = []
+            for app, models in TRIGGER_IDX.items():
+                for model, events in models.items():
+                    slug_list.extend(reduce(operator.add, events.values()))
+        return [get_trigger_config(slug) for slug in slug_list]
+
+    def add_trigger(self, config):
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_TRIGGER)
+
+    def update_trigger(self, id, config):
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_TRIGGER)
+
+    def save_trigger(self, config, id=None):
+        raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_TRIGGER)
 
 
-def list_api_config(app=None):
-    global API_DATA
-    if app:
-        apps = [app]
-    else:
-        apps = API_DATA.keys()
-    results = []
-    for app in apps:
-        for slug in API_DATA[app].keys():
-            r = get_api_config(slug, app)
-        results.append(r)
-        results.extend(API_DATA[app].values())
-
-    return results
+driver = JSDriver()

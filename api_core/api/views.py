@@ -267,7 +267,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             api = self.api
-            exists = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_BEFORE_CREATE)
+            exists = trigger_services.exists_trigger(
+                api_const.TRIGGER_EVENT_BEFORE_CREATE,
+                app=api.app,
+                model=api.model,
+            )
             if exists:
                 validated_data = copy.copy(serializer.validated_data)
 
@@ -283,10 +287,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
 
                 trigger_services.handle_triggers(
                     self.request,
-                    api.app,
-                    api.model,
                     api_const.TRIGGER_EVENT_BEFORE_CREATE,
-                    new_inst=new_inst
+                    id=None,
+                    new_inst=new_inst,
+                    app=api.app,
+                    model=api.model,
                 )
                 
                 new_inst.save()
@@ -299,15 +304,21 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             else:
                 new_inst = serializer.save()
 
-            exists = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_AFTER_CREATE)
+            exists = trigger_services.exists_trigger(
+                api_const.TRIGGER_EVENT_AFTER_CREATE,
+                app=api.app,
+                model=api.model,
+            )
+
             if exists:
                 # new_inst = instance
                 trigger_services.handle_triggers(
                     self.request,
-                    api.app,
-                    api.model,
                     api_const.TRIGGER_EVENT_AFTER_CREATE,
-                    new_inst=new_inst
+                    id=new_inst.id,
+                    new_inst=new_inst,
+                    app=api.app,
+                    model=api.model,
                 )
 
             return new_inst
@@ -315,8 +326,16 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
     def perform_update(self, serializer):
         with transaction.atomic():
             api = self.api
-            exist_before = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_BEFORE_UPDATE)
-            exists_after = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_AFTER_UPDATE)
+            exist_before = trigger_services.exists_trigger(
+                api_const.TRIGGER_EVENT_BEFORE_UPDATE,
+                app=api.app,
+                model=api.model,
+            )
+            exists_after = trigger_services.exists_trigger(
+                api_const.TRIGGER_EVENT_AFTER_UPDATE,
+                app=api.app,
+                model=api.model,
+            )
 
             if exist_before or exists_after:
                 old_inst = self.get_queryset().get(id=serializer.instance.id)
@@ -335,11 +354,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 if exist_before:
                     trigger_services.handle_triggers(
                         self.request,
-                        api.app,
-                        api.model,
                         api_const.TRIGGER_EVENT_BEFORE_UPDATE,
-                        old_inst,
-                        new_inst
+                        id=new_inst.id,
+                        old_inst=old_inst,
+                        new_inst=new_inst,
+                        app=api.app,
+                        model=api.model,
                     )
 
                 new_inst.save()
@@ -347,11 +367,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                 if exists_after:
                     trigger_services.handle_triggers(
                         self.request,
-                        api.app,
-                        api.model,
                         api_const.TRIGGER_EVENT_AFTER_UPDATE,
-                        old_inst,
-                        new_inst
+                        id=new_inst.id,
+                        old_inst=old_inst,
+                        new_inst=new_inst,
+                        app=api.app,
+                        model=api.model,
                     )
 
                 return new_inst
@@ -361,16 +382,25 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
     def perform_destroy(self, instance):
         with transaction.atomic():
             api = self.api
-            exist_before = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_BEFORE_DELETE)
-            exists_after = trigger_services.exists_trigger(api.app, api.model, api_const.TRIGGER_EVENT_AFTER_DELETE)
+            exist_before = trigger_services.exists_trigger(
+                api_const.TRIGGER_EVENT_BEFORE_DELETE,
+                app=api.app,
+                model=api.model,
+            )
+            exists_after = trigger_services.exists_trigger(
+                api_const.TRIGGER_EVENT_AFTER_DELETE,
+                app=api.app,
+                model=api.model,
+            )
 
             if exist_before:
                 trigger_services.handle_triggers(
                     self.request,
-                    api.app,
-                    api.model,
                     api_const.TRIGGER_EVENT_BEFORE_DELETE,
-                    old_inst=instance
+                    id=instance.id,
+                    old_inst=instance,
+                    app=api.app,
+                    model=api.model,
                 )
 
             if exists_after:
@@ -381,10 +411,11 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             if exists_after:
                 trigger_services.handle_triggers(
                     self.request,
-                    api.app,
-                    api.model,
                     api_const.TRIGGER_EVENT_AFTER_DELETE,
-                    old_inst=old_inst
+                    id=old_inst.id,
+                    old_inst=old_inst,
+                    app=api.app,
+                    model=api.model,
                 )
 
     def api(self, request, *args, **kwargs):

@@ -84,33 +84,18 @@ def load_api_js(app=None):
 
 # TRIGGER_DATA[slug] = config
 TRIGGER_DATA = {}
-# TRIGGER_IDX[app][model][event] = [slug1,slug2...]
-TRIGGER_IDX = {}
+# TRIGGER_IDX[event] = [slug1,slug2...]
+# TRIGGER_IDX = {}
 # TRIGGER_LOAD_TIME {app:time}
 TRIGGER_LOAD_TIME = {}
 
 
-def load_trigger_data(app, config):
+def load_trigger_data(config):
     global TRIGGER_DATA
-
-    if app not in TRIGGER_IDX:
-        TRIGGER_IDX[app] = {}
-
-    model = config['model']
-    if model not in TRIGGER_IDX[app]:
-        TRIGGER_IDX[app][model] = {}
-
-    event = config['event']
-    if event not in TRIGGER_IDX[app][model]:
-        TRIGGER_IDX[app][model][event] = []
 
     slug = config['slug']
     if slug not in TRIGGER_DATA:
         TRIGGER_DATA[slug] = {}
-
-    TRIGGER_DATA[slug] = config
-    if slug not in TRIGGER_IDX[app][model][event]:
-        TRIGGER_IDX[app][model][event].append(slug)
 
 
 def load_trigger_js(app=None):
@@ -208,33 +193,22 @@ class JSDriver(APIDriver):
     def get_trigger_config(self, slug):
         return get_trigger_config(slug)
 
-    def list_trigger_config(self, app=None, model=None, event=None):
-        load_trigger_js(app)
-        if app:
-            if app not in TRIGGER_IDX:
-                return []
+    def list_trigger_config(self, event=None, *args, **kwargs):
+        load_trigger_js()
 
-            if model:
-                if model not in TRIGGER_IDX[app]:
-                    return []
-
-                if event:
-                    if event not in TRIGGER_IDX[app][model]:
-                        return []
-
-                    slug_list = TRIGGER_IDX[app][model][event]
-                else:
-                    slug_list = reduce(operator.add, TRIGGER_IDX[app][model].values())
-            else:
-                slug_list = []
-                for model, events in TRIGGER_IDX[app].items():
-                    slug_list.extend(reduce(operator.add, events.values()))
+        if event:
+            ls = [d for d in TRIGGER_DATA.values() if d.get('event') == event]
         else:
-            slug_list = []
-            for app, models in TRIGGER_IDX.items():
-                for model, events in models.items():
-                    slug_list.extend(reduce(operator.add, events.values()))
-        return [get_trigger_config(slug) for slug in slug_list]
+            ls = TRIGGER_DATA.values()
+
+        for k, v in kwargs:
+            ls = [
+                d
+                for d in TRIGGER_DATA.values()
+                if d.get('triggercondition', {}).get(k) == v
+            ]
+
+        return ls
 
     def add_trigger(self, config):
         raise exceptions.BusinessException(error_code=exceptions.CAN_NOT_SAVE_TRIGGER)

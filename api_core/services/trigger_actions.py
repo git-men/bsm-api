@@ -1,13 +1,6 @@
 from django.apps import apps
-from api_core.services.expresstion import resolve_expression
-
-
-def convert_filters(filters_config, variables):
-    result = {}
-    for f in filters_config:
-        # TODO
-        result[f['field']] = resolve_expression(f['expression'], variables=variables)
-    return result
+from api_basebone.services.expresstion import resolve_expression
+from api_basebone.utils import queryset as queryset_util
 
 
 def convert_fields(fields_config, variables):
@@ -25,9 +18,8 @@ def reg_action(func):
 @reg_action
 def update(conf, variables):
     model = apps.get_model(conf['app'], conf['model'])
-    filters = convert_filters(conf['filters'], variables=variables)
     fields = convert_fields(conf['fields'], variables=variables)
-    model.objects.filter(**filters).update(**fields)
+    queryset_util.filter(model.objects, conf['filters'], context=variables).update(**fields)
 
 
 @reg_action
@@ -40,8 +32,7 @@ def create(conf, variables):
 @reg_action
 def delete(conf, variables):
     model = apps.get_model(conf['app'], conf['model'])
-    filters = convert_filters(conf['filters'], variables=variables)
-    model.objects.filter(**filters).delete()
+    queryset_util.filter(model.objects, conf['filters'], context=variables).delete()
 
 
 class Variable:

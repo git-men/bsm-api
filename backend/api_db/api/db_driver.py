@@ -10,8 +10,8 @@ from api_basebone.core import exceptions
 
 # from api_basebone.export.fields import get_model_field_config
 from api_basebone.restful.serializers import multiple_create_serializer_class
-from api_core.api.cache import api_cache
-from api_core.api.cache import trigger_cache
+from .cache import api_cache
+from .cache import trigger_cache
 from api_core.api import const
 from api_core.api import utils
 

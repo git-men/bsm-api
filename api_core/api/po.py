@@ -6,8 +6,6 @@ from api_basebone.core import exceptions
 
 
 class ApiPO:
-    # def __init__(self):
-    #     pass
 
     def __str__(self):
         return self.slug
@@ -42,8 +40,6 @@ class ApiPO:
 
 
 class ParameterPO:
-    # def __init__(self):
-    #     pass
 
     def to_set_field_config(self):
         config = {'name': self.name, 'value': f'${{{self.name}}}'}
@@ -70,8 +66,6 @@ class ParameterPO:
 
 
 class DisplayFieldPO:
-    # def __init__(self):
-    #     pass
 
     def __str__(self):
         return self.name
@@ -84,8 +78,6 @@ class DisplayFieldPO:
 
 
 class SetFieldPO:
-    # def __init__(self):
-    #     pass
 
     def __str__(self):
         return self.name
@@ -520,51 +512,6 @@ class TriggerConditionPO:
         )
 
 
-# class TriggerFilterPO:
-#     '''触发器条件'''
-#     trigger: TriggerPO = None
-#     type = None
-#     parent = None
-#     field: str = None
-#     operator = None
-#     expression: str = None
-#     layer = None
-#     children: list = None
-#     real_value = None
-
-#     def is_container(self):
-#         return self.type == const.TRIGGER_FILTER_TYPE_CONTAINER
-
-#     def is_filter_attribute(self):
-#         """value按照属性过滤"""
-#         value = self.get_real_value()
-#         if isinstance(value, str):
-#             return value.startswith('${')
-#         else:
-#             return False
-
-#     def is_filter_param(self):
-#         """value按照服务端变量过滤"""
-#         value = self.get_real_value()
-#         if isinstance(value, str):
-#             return value.startswith('#{')
-#         else:
-#             return False
-
-#     def get_real_value(self):
-#         if self.real_value is None:
-#             self.real_value = json.loads(self.expression)
-#         return self.real_value
-
-#     def __str__(self):
-#         return '%s object (%s,%s,%s)' % (
-#             self.__class__.__name__,
-#             self.field,
-#             self.operator,
-#             self.expression,
-#         )
-
-
 class TriggerActionPO:
     '''触发器行为'''
 
@@ -578,38 +525,11 @@ class TriggerActionPO:
     config = None
 
 
-# class TriggerActionSetPO:
-#     '''触发器写行为'''
-
-#     action = None
-#     field = None
-#     value = None
-
-
-# class TriggerActionFilterPO:
-#     action = None
-#     type = None
-#     parent = None
-#     field = None
-#     operator = None
-#     value = None
-#     layer = None
-
-
 def loadTrigger(config):
     trigger = TriggerPO()
     trigger.slug = config.get('slug')
 
-    # trigger.app = config.get('app')
-    # trigger.model = config.get('model')
     trigger.disable = config.get('disable', False)
-    # try:
-    #     apps.get_model(trigger.app, trigger.model)
-    # except LookupError:
-    #     raise exceptions.BusinessException(
-    #         error_code=exceptions.PARAMETER_FORMAT_ERROR,
-    #         error_data=f'{trigger.app}__{trigger.model} 不是有效的model',
-    #     )
 
     trigger.name = config.get('name', '')
     trigger.summary = config.get('summary', '')
@@ -621,7 +541,6 @@ def loadTrigger(config):
             error_data=f'\'operation\': {trigger.event} 不是合法的触发器事件',
         )
 
-    # loadTriggerFilter(trigger, config.get('triggerfilter'))
     loadTriggerCondition(trigger, config.get('triggercondition'))
     loadTriggerAction(trigger, config.get('triggeraction'))
     return trigger
@@ -643,33 +562,6 @@ def loadTriggerCondition(trigger: TriggerPO, condition: dict):
         )
 
 
-# def loadTriggerFilter(trigger: TriggerPO, filters: list):
-#     trigger.triggerfilter = [loadOneTriggerFilter(trigger, f) for f in filters]
-
-
-# def loadOneTriggerFilter(trigger: TriggerPO, f: TriggerFilterPO, parent=None):
-#     filter_po = TriggerFilterPO()
-#     filter_po.trigger = trigger
-#     if parent:
-#         filter_po.parent = parent
-#         filter_po.layer = parent.layer + 1
-#     else:
-#         filter_po.layer = 0
-#     if 'children' in f:
-#         filter_po.type = const.TRIGGER_FILTER_TYPE_CONTAINER
-#         filter_po.operator = f.get('operator')
-
-#         filter_po.children = [loadOneTriggerFilter(trigger, child, filter_po) for child in f.get('children', [])]
-#     else:
-#         filter_po.type = const.FILTER_TYPE_CHILD
-#         filter_po.field = f.get('field')
-#         filter_po.operator = f.get('operator')
-#         if 'expression' in f:
-#             filter_po.expression = f.get('expression')
-
-#     return filter_po
-
-
 def loadTriggerAction(trigger: TriggerPO, actions: list):
     trigger.triggeraction = []
     for action in actions:
@@ -684,53 +576,8 @@ def loadTriggerAction(trigger: TriggerPO, actions: list):
             )
         trigger.triggeraction.append(action_po)
 
-        # if 'triggeractionset' in action:
-        #     loadTriggerActionSet(action_po, action['triggeractionset'])
-
-        # if 'triggeractionfilter' in action:
-        #     loadTriggerActionSetFilter(action_po, action['triggeractionfilter'])
-
         if 'fields' in action:
             action_po.fields = action['fields']
 
         if 'filters' in action:
             action_po.filters = action['filters']
-
-
-# def loadTriggerActionSet(action: TriggerActionPO, sets: list):
-#     action.triggeractionset = []
-#     for s in sets:
-#         po = TriggerActionSetPO()
-#         po.action = action
-#         po.field = s['field']
-#         po.value = s['value']
-#         action.triggeractionset.append(po)
-
-
-# def loadTriggerActionSetFilter(action: TriggerActionPO, filters: list):
-#     action.triggeractionfilter = [loadOneTriggerActionSetFilter(action, f) for f in filters]
-
-
-# def loadOneTriggerActionSetFilter(action: TriggerActionPO, f: TriggerActionFilterPO, parent=None):
-#     po = TriggerActionFilterPO()
-#     po.action = action
-#     if parent:
-#         po.parent = parent
-#         po.layer = parent.layer + 1
-#     else:
-#         po.layer = 0
-
-#     if 'children' in f:
-#         po.type = const.TRIGGER_ACTION_FILTER_TYPE_CONTAINER
-#         po.operator = f.get('operator')
-
-#         children = f.get('children')
-#         po.children = [loadOneTriggerActionSetFilter(action, child, po) for child in children]
-#     else:
-#         po.type = const.TRIGGER_ACTION_FILTER_TYPE_CHILD
-#         po.field = f.get('field')
-#         po.operator = f.get('operator')
-#         if 'value' in f:
-#             po.value = json.dumps(f.get('value'))
-
-#     return po

@@ -14,47 +14,6 @@ logger = logging.getLogger('django')
 class Api(models.Model):
     '''Api接口模型'''
 
-    # OPERATION_LIST = 'list'
-    # OPERATION_RETRIEVE = 'retrieve'
-    # OPERATION_CREATE = 'create'
-    # OPERATION_UPDATE = 'update'
-    # OPERATION_REPLACE = 'replace'
-    # OPERATION_DELETE = 'delete'
-    # OPERATION_UPDATE_BY_CONDITION = 'update_by_condition'
-    # OPERATION_DELETE_BY_CONDITION = 'delete_by_condition'
-    # OPERATION_FUNC = 'func'
-    # OPERATIONS_CHOICES = (
-    #     (OPERATION_LIST, '查看'),
-    #     (OPERATION_RETRIEVE, '详情'),
-    #     (OPERATION_CREATE, '新建'),
-    #     (OPERATION_UPDATE, '全部更新'),
-    #     (OPERATION_REPLACE, '部分更新'),
-    #     (OPERATION_DELETE, '删除'),
-    #     (OPERATION_UPDATE_BY_CONDITION, '批量更新'),
-    #     (OPERATION_DELETE_BY_CONDITION, '批量删除'),
-    #     (OPERATION_FUNC, '云函数'),
-    # )
-
-    # OPERATIONS = set([t[0] for t in OPERATIONS_CHOICES])
-
-    # MATHOD_GET = 'get'
-    # MATHOD_POST = 'post'
-    # MATHOD_PUT = 'put'
-    # MATHOD_DELETE = 'delete'
-    # MATHOD_PATCH = 'patch'
-
-    # METHOD_MAP = {
-    #     OPERATION_LIST: (MATHOD_GET,),
-    #     OPERATION_RETRIEVE: (MATHOD_GET,),
-    #     OPERATION_CREATE: (MATHOD_POST,),
-    #     OPERATION_UPDATE: (MATHOD_PUT,),
-    #     OPERATION_REPLACE: (MATHOD_PATCH, MATHOD_PUT),
-    #     OPERATION_DELETE: (MATHOD_DELETE,),
-    #     OPERATION_UPDATE_BY_CONDITION: (MATHOD_PATCH, MATHOD_PUT),
-    #     OPERATION_DELETE_BY_CONDITION: (MATHOD_DELETE,),
-    #     OPERATION_FUNC: (MATHOD_POST,),
-    # }
-
     slug = models.SlugField('接口标识', max_length=50, unique=True)
     app = models.CharField('app名字', max_length=50)
     model = models.CharField('数据模型名字', max_length=50)
@@ -216,50 +175,6 @@ class SetField(models.Model):
 class Filter(models.Model):
     '''查询条件'''
 
-    # TYPE_CONTAINER = 0  # 容器
-    # TYPE_CHILD = 1  # 单一条件
-
-    # OPERATIONS_AND = 'and'
-    # OPERATIONS_OR = 'or'
-    # OPERATIONS_GT = '>'
-    # OPERATIONS_GTE = '>='
-    # OPERATIONS_LT = '<'
-    # OPERATIONS_LTE = '<='
-    # OPERATIONS_EQ = '='
-    # OPERATIONS_NOT_EQ = '!='
-    # OPERATIONS_IN = 'in'
-    # OPERATIONS_STARTSWITH = 'startswith'
-    # OPERATIONS_ENDSWITH = 'endswith'
-    # OPERATIONS_CONTAINS = 'contains'
-    # OPERATIONS_ICONTAINS = 'icontains'
-    # OPERATIONS_BETWEEN = 'between'
-    # OPERATIONS_NEAR = 'near'
-    # OPERATIONS_HAS = 'has'
-    # OPERATIONS_HAS_ANY = 'has_any'
-    # OPERATIONS_HAS_ALL = 'has_all'
-    # OPERATIONS_ISNULL = 'isnull'
-    # OPERATIONS_CHOICES = (
-    #     (OPERATIONS_AND, '与'),
-    #     (OPERATIONS_OR, '或'),
-    #     (OPERATIONS_GT, '大于'),
-    #     (OPERATIONS_GTE, '大于等于'),
-    #     (OPERATIONS_LT, '小于'),
-    #     (OPERATIONS_LTE, '小于等于'),
-    #     (OPERATIONS_EQ, '等于'),
-    #     (OPERATIONS_NOT_EQ, '不等于'),
-    #     (OPERATIONS_IN, '在列表范围内'),
-    #     (OPERATIONS_STARTSWITH, '以某字符串开始'),
-    #     (OPERATIONS_ENDSWITH, '以某字符串结束'),
-    #     (OPERATIONS_CONTAINS, '包含'),
-    #     (OPERATIONS_ICONTAINS, '包含（无视大小写）'),
-    #     (OPERATIONS_BETWEEN, '起止范围'),
-    #     # (OPERATIONS_NEAR, ''),
-    #     # (OPERATIONS_HAS, ''),
-    #     # (OPERATIONS_HAS_ANY, ''),
-    #     # (OPERATIONS_HAS_ALL, ''),
-    #     (OPERATIONS_ISNULL, '为空'),
-    # )
-
     api = models.ForeignKey(Api, models.CASCADE, verbose_name='api')
     type = models.IntegerField(
         '条件类型',
@@ -336,33 +251,6 @@ class TriggerCondition(models.Model):
         verbose_name_plural = '触发器条件'
 
         index_together = [('app', 'model')]
-
-
-# class TriggerFilter(models.Model):
-#     '''触发器条件'''
-
-#     trigger = models.ForeignKey(Trigger, models.CASCADE, verbose_name='trigger')
-#     type = models.IntegerField('条件类型', choices=const.TRIGGER_FILTER_CHOICES)
-#     parent = models.ForeignKey(
-#         'self', models.CASCADE, null=True, verbose_name='parent', related_name="children"
-#     )
-#     field = models.CharField('条件字段名', max_length=50, null=True)
-#     operator = models.CharField('条件判断符', max_length=20, null=True)
-#     expression = models.CharField('条件值', max_length=100, null=True)
-#     layer = models.IntegerField('嵌套层数', default=0)
-
-#     def __str__(self):
-#         return '%s object (%s,%s,%s,%s)' % (
-#             self.__class__.__name__,
-#             self.pk,
-#             self.field,
-#             self.operator,
-#             self.expression,
-#         )
-
-#     class Meta:
-#         verbose_name = '触发器条件'
-#         verbose_name_plural = '触发器条件'
 
 
 class TriggerAction(models.Model):

@@ -5,8 +5,7 @@ from django.conf import settings
 from django.apps import apps
 
 from django.core.management.base import BaseCommand
-
-from api_db.api.db_driver import driver
+from ...driver.db_driver import driver
 
 log = logging.getLogger('django')
 
@@ -25,14 +24,15 @@ class Command(BaseCommand):
         """"""
         app = kwargs.get('app')
         result = {}
-        result['api'] = self.dump_api(app)
+        result['trigger'] = self.dump_trigger(app)
         for k, d in result.items():
             print(f'{k}导出成功')
             print(f'成功的{k}：' + str(d['success_list']))
             print(f'失败的{k}：' + str(d['error_list']))
 
-    def dump_api(self, app):
-        self.stdout.write('导出 api 配置...')
+    def dump_trigger(self, app):
+        """"""
+        self.stdout.write('导出 trigger 配置...')
         if app:
             export_apps = [app]
         else:
@@ -45,32 +45,30 @@ class Command(BaseCommand):
             f = None
             try:
                 app_config = apps.get_app_config(app)
-                path = app_config.module.__path__[0] + '/api_config.json'
-                api_list = driver.list_api_config(app)
-                if not api_list:
+                path = app_config.module.__path__[0] + '/trigger_config.json'
+                trigger_list = driver.list_trigger_config(app=app)
+                if not trigger_list:
                     continue
-                print(f'-------------------开始导出 app：{app} 的api配置 ------------------')
-                api_config_list = []
-                for api_config in api_list:
-                    del api_config['id']  # api配置文件不用包含id
-                    api_config_list.append(api_config)
+                print(f'-------------------开始导出 app：{app} 的trigger配置 ------------------')
+                trigger_config_list = []
+                for trigger_config in trigger_list:
+                    del trigger_config['id']  # trigger配置文件不用包含id
+                    trigger_config_list.append(trigger_config)
 
-                api_json = json.dumps(
-                    api_config_list, ensure_ascii=False, indent=4, sort_keys=True
+                trigger_json = json.dumps(
+                    trigger_config_list, ensure_ascii=False, indent=4, sort_keys=True
                 )
                 with open(path, 'w', encoding='utf-8') as f:
-                    f.write(api_json)
+                    f.write(trigger_json)
                     success_list.append(app)
-                print(f'------------------- 导出 api 配置完成 ----------------------------')
-                slug_list = [api_config['slug'] for api_config in api_list]
-                print(f'导出 api {app} 配置完成:{slug_list}')
+                print(f'------------------- 导出 trigger 配置完成 ----------------------------')
+                slug_list = [trigger_config['slug'] for trigger_config in trigger_list]
+                print(f'导出 trigger {app} 配置完成:{slug_list}')
             except Exception as e:
                 error_list.append(app)
-                print('导出 API 异常： {}'.format(traceback.format_exc()))
+                print('导出 trigger 异常： {}'.format(traceback.format_exc()))
 
-        # print(f'api导出成功')
+        # print(f'trigger导出成功')
         # print(f'成功的app：{success_list}')
         # print(f'失败的app：{error_list}')
         return {'success_list': success_list, 'error_list': error_list}
-        # print(f'{success_num}个API导出成功，{change_num}个变更，{error_num}个API 异常')
-

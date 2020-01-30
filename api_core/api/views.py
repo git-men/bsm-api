@@ -36,7 +36,13 @@ from api_basebone.restful.mixins import FormMixin
 from api_basebone.restful.client.views import QuerySetMixin
 
 from ..services import api_services
-from ..services import trigger_services
+from ..signals import bsm_before_create
+from ..signals import bsm_after_create
+from ..signals import bsm_before_update
+from ..signals import bsm_after_update
+from ..signals import bsm_before_delete
+from ..signals import bsm_after_delete
+# from trigger_core.services import trigger_services
 from api_basebone.services import rest_services
 
 from . import api_param
@@ -266,157 +272,151 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
 
     def perform_create(self, serializer):
         with transaction.atomic():
-            api = self.api
-            exists = trigger_services.exists_trigger(
-                api_const.TRIGGER_EVENT_BEFORE_CREATE,
-                app=api.app,
-                model=api.model,
-            )
-            if exists:
-                validated_data = copy.copy(serializer.validated_data)
+            # api = self.api
+            validated_data = copy.copy(serializer.validated_data)
+            many_to_many = {}
+            info = model_meta.get_field_info(self.model)
+            for field_name, relation_info in info.relations.items():
+                if relation_info.to_many and (field_name in validated_data):
+                    many_to_many[field_name] = validated_data.pop(field_name)
+            new_inst = self.model(**validated_data)
 
-                many_to_many = {}
-                info = model_meta.get_field_info(self.model)
-                for field_name, relation_info in info.relations.items():
-                    if relation_info.to_many and (field_name in validated_data):
-                        many_to_many[field_name] = validated_data.pop(field_name)
+            # exists = trigger_services.exists_trigger(
+            #     api_const.TRIGGER_EVENT_BEFORE_CREATE,
+            #     app=api.app,
+            #     model=api.model,
+            # )
+            # if exists:
+            #     trigger_services.handle_triggers(
+            #         self.request,
+            #         api_const.TRIGGER_EVENT_BEFORE_CREATE,
+            #         id=None,
+            #         new_inst=new_inst,
+            #         app=api.app,
+            #         model=api.model,
+            #     )
 
-                new_inst = self.model(**validated_data)
+            bsm_before_create.send(sender=ApiViewSet, apiViewSet=self, new_inst=new_inst)
 
-                # print(f'perform_create2:{type(new_inst)},{new_inst}')
+            new_inst.save()
+            # 保存多对多
+            if many_to_many:
+                for field_name, value in many_to_many.items():
+                    field = getattr(new_inst, field_name)
+                    field.set(value)
 
-                trigger_services.handle_triggers(
-                    self.request,
-                    api_const.TRIGGER_EVENT_BEFORE_CREATE,
-                    id=None,
-                    new_inst=new_inst,
-                    app=api.app,
-                    model=api.model,
-                )
-                
-                new_inst.save()
+            # exists = trigger_services.exists_trigger(
+            #     api_const.TRIGGER_EVENT_AFTER_CREATE,
+            #     app=api.app,
+            #     model=api.model,
+            # )
+            # if exists:
+            #     # new_inst = instance
+            #     trigger_services.handle_triggers(
+            #         self.request,
+            #         api_const.TRIGGER_EVENT_AFTER_CREATE,
+            #         id=new_inst.id,
+            #         new_inst=new_inst,
+            #         app=api.app,
+            #         model=api.model,
+            #     )
 
-                # 保存多对多
-                if many_to_many:
-                    for field_name, value in many_to_many.items():
-                        field = getattr(new_inst, field_name)
-                        field.set(value)
-            else:
-                new_inst = serializer.save()
-
-            exists = trigger_services.exists_trigger(
-                api_const.TRIGGER_EVENT_AFTER_CREATE,
-                app=api.app,
-                model=api.model,
-            )
-
-            if exists:
-                # new_inst = instance
-                trigger_services.handle_triggers(
-                    self.request,
-                    api_const.TRIGGER_EVENT_AFTER_CREATE,
-                    id=new_inst.id,
-                    new_inst=new_inst,
-                    app=api.app,
-                    model=api.model,
-                )
+            bsm_after_create.send(sender=ApiViewSet, apiViewSet=self, new_inst=new_inst)
 
             return new_inst
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            api = self.api
-            exist_before = trigger_services.exists_trigger(
-                api_const.TRIGGER_EVENT_BEFORE_UPDATE,
-                app=api.app,
-                model=api.model,
-            )
-            exists_after = trigger_services.exists_trigger(
-                api_const.TRIGGER_EVENT_AFTER_UPDATE,
-                app=api.app,
-                model=api.model,
-            )
+            # api = self.api
+            # exist_before = trigger_services.exists_trigger(
+            #     api_const.TRIGGER_EVENT_BEFORE_UPDATE,
+            #     app=api.app,
+            #     model=api.model,
+            # )
+            # exists_after = trigger_services.exists_trigger(
+            #     api_const.TRIGGER_EVENT_AFTER_UPDATE,
+            #     app=api.app,
+            #     model=api.model,
+            # )
 
-            if exist_before or exists_after:
-                old_inst = self.get_queryset().get(id=serializer.instance.id)
-                new_inst = serializer.instance
-                validated_data = serializer.validated_data
-                info = model_meta.get_field_info(new_inst)
-                for attr, value in validated_data.items():
-                    if attr in info.relations and info.relations[attr].to_many:
-                        field = getattr(new_inst, attr)
-                        field.set(value)
-                    else:
-                        setattr(new_inst, attr, value)
+            old_inst = self.get_queryset().get(id=serializer.instance.id)
+            new_inst = serializer.instance
+            validated_data = serializer.validated_data
+            info = model_meta.get_field_info(new_inst)
+            for attr, value in validated_data.items():
+                if attr in info.relations and info.relations[attr].to_many:
+                    field = getattr(new_inst, attr)
+                    field.set(value)
+                else:
+                    setattr(new_inst, attr, value)
 
-                # print(f'perform_update:{new_inst}')
-            
-                if exist_before:
-                    trigger_services.handle_triggers(
-                        self.request,
-                        api_const.TRIGGER_EVENT_BEFORE_UPDATE,
-                        id=new_inst.id,
-                        old_inst=old_inst,
-                        new_inst=new_inst,
-                        app=api.app,
-                        model=api.model,
-                    )
+            # if exist_before:
+            #     trigger_services.handle_triggers(
+            #         self.request,
+            #         api_const.TRIGGER_EVENT_BEFORE_UPDATE,
+            #         id=new_inst.id,
+            #         old_inst=old_inst,
+            #         new_inst=new_inst,
+            #         app=api.app,
+            #         model=api.model,
+            #     )
+            bsm_before_update.send(sender=ApiViewSet, apiViewSet=self, old_inst=old_inst, new_inst=new_inst)
 
-                new_inst.save()
+            new_inst.save()
 
-                if exists_after:
-                    trigger_services.handle_triggers(
-                        self.request,
-                        api_const.TRIGGER_EVENT_AFTER_UPDATE,
-                        id=new_inst.id,
-                        old_inst=old_inst,
-                        new_inst=new_inst,
-                        app=api.app,
-                        model=api.model,
-                    )
+            # if exists_after:
+            #     trigger_services.handle_triggers(
+            #         self.request,
+            #         api_const.TRIGGER_EVENT_AFTER_UPDATE,
+            #         id=new_inst.id,
+            #         old_inst=old_inst,
+            #         new_inst=new_inst,
+            #         app=api.app,
+            #         model=api.model,
+            #     )
+            bsm_after_update.send(sender=ApiViewSet, apiViewSet=self, old_inst=old_inst, new_inst=new_inst)
 
-                return new_inst
-            else:
-                return serializer.save()
+            return new_inst
 
     def perform_destroy(self, instance):
         with transaction.atomic():
-            api = self.api
-            exist_before = trigger_services.exists_trigger(
-                api_const.TRIGGER_EVENT_BEFORE_DELETE,
-                app=api.app,
-                model=api.model,
-            )
-            exists_after = trigger_services.exists_trigger(
-                api_const.TRIGGER_EVENT_AFTER_DELETE,
-                app=api.app,
-                model=api.model,
-            )
+            # api = self.api
+            # exist_before = trigger_services.exists_trigger(
+            #     api_const.TRIGGER_EVENT_BEFORE_DELETE,
+            #     app=api.app,
+            #     model=api.model,
+            # )
+            # exists_after = trigger_services.exists_trigger(
+            #     api_const.TRIGGER_EVENT_AFTER_DELETE,
+            #     app=api.app,
+            #     model=api.model,
+            # )
 
-            if exist_before:
-                trigger_services.handle_triggers(
-                    self.request,
-                    api_const.TRIGGER_EVENT_BEFORE_DELETE,
-                    id=instance.id,
-                    old_inst=instance,
-                    app=api.app,
-                    model=api.model,
-                )
+            # if exist_before:
+            #     trigger_services.handle_triggers(
+            #         self.request,
+            #         api_const.TRIGGER_EVENT_BEFORE_DELETE,
+            #         id=instance.id,
+            #         old_inst=instance,
+            #         app=api.app,
+            #         model=api.model,
+            #     )
 
-            if exists_after:
-                old_inst = self.get_queryset().get(id=instance.id)
+            old_inst = self.get_queryset().get(id=instance.id)
+            bsm_before_delete.send(sender=ApiViewSet, apiViewSet=self, old_inst=old_inst)
 
             instance.delete()
 
-            if exists_after:
-                trigger_services.handle_triggers(
-                    self.request,
-                    api_const.TRIGGER_EVENT_AFTER_DELETE,
-                    id=old_inst.id,
-                    old_inst=old_inst,
-                    app=api.app,
-                    model=api.model,
-                )
+            # if exists_after:
+            #     trigger_services.handle_triggers(
+            #         self.request,
+            #         api_const.TRIGGER_EVENT_AFTER_DELETE,
+            #         id=old_inst.id,
+            #         old_inst=old_inst,
+            #         app=api.app,
+            #         model=api.model,
+            #     )
+            bsm_after_delete.send(sender=ApiViewSet, apiViewSet=self, old_inst=old_inst)
 
     def api(self, request, *args, **kwargs):
         slug = kwargs.get('pk')

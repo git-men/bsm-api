@@ -21,24 +21,6 @@ class APIDriver:
     def list_api_config(self, app=None):
         pass
 
-    def get_trigger_config(self, slug):
-        pass
-
-    def get_trigger_config_by_id(self, id):
-        pass
-
-    def list_trigger_config(self, event=None, *args, **kwargs):
-        pass
-
-    def add_trigger(self, config):
-        pass
-
-    def update_trigger(self, id, config):
-        pass
-
-    def save_trigger(self, config, id=None):
-        pass
-
 
 def query_from_json(data, key):
     """
@@ -185,70 +167,3 @@ def get_api_driver() -> APIDriver:
             error_code=exceptions.PARAMETER_FORMAT_ERROR,
             error_data=f'api存储驱动参数\'API_DRIVER\'配置不正确',
         )
-
-
-def format_trigger_config(config):
-    pass
-    # config['triggerfilter'] = format_trigger_filter_config(
-    #     config.get('triggerfilter'), True
-    # )
-    # actions = config.get('triggeraction', [])
-    # for action in actions:
-    #     action['triggeractionfilter'] = format_trigger_action_filter_config(
-    #         action.get('triggeractionfilter'), True
-    #     )
-
-
-def format_trigger_filter_config(filters: list, is_root):
-    if not filters:
-        return []
-
-    if is_root:
-        filters = [f for f in filters if f['parent'] is None]
-
-    for f in filters:
-        exclude_keys = ['type', 'parent']
-        if f['type'] == const.FILTER_TYPE_CONTAINER:
-            exclude_keys.extend(['field', 'value'])
-        else:
-            exclude_keys.extend(['children'])
-
-        del_exclude_keys(f, exclude_keys)
-
-        if 'children' in f:
-            f['children'] = format_trigger_filter_config(f['children'], False)
-
-        if 'value' in f and isinstance(f['value'], str):
-            try:
-                f['value'] = json.loads(f['value'])
-            except Exception:
-                pass
-
-    return filters
-
-
-# def format_trigger_action_filter_config(filters: list, is_root):
-#     if not filters:
-#         return []
-
-#     if is_root:
-#         filters = [f for f in filters if f['parent'] is None]
-
-#     for f in filters:
-#         exclude_keys = ['type', 'parent']
-#         if f['type'] == const.FILTER_TYPE_CONTAINER:
-#             exclude_keys.extend(['field', 'value'])
-#         else:
-#             exclude_keys.extend(['children'])
-
-#         del_exclude_keys(f, exclude_keys)
-
-#         if 'children' in f:
-#             f['children'] = format_trigger_action_filter_config(f['children'], False)
-
-#         if 'value' in f and isinstance(f['value'], str):
-#             try:
-#                 f['value'] = json.loads(f['value'])
-#             except Exception:
-#                 pass
-#     return filters

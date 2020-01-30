@@ -1,14 +1,13 @@
 import logging
-import json
 import re
 import traceback
 
 from api_basebone.core import exceptions
 
-from ..api import api_param
-from ..api import const
-from ..api import po
-from ..api import utils
+from api_core.api import api_param
+from .. import const
+from .. import po
+from .. import driver as driver_factory
 
 from .trigger_actions import run_action
 
@@ -16,29 +15,29 @@ log = logging.getLogger('django')
 
 
 def add_trigger(config):
-    driver = utils.get_api_driver()
+    driver = driver_factory.get_trigger_driver()
     return driver.add_trigger(config)
 
 
 def update_trigger(id, config):
-    driver = utils.get_api_driver()
+    driver = driver_factory.get_trigger_driver()
     return driver.update_trigger(id, config)
 
 
 def save_trigger(config, id=None):
-    driver = utils.get_api_driver()
+    driver = driver_factory.get_trigger_driver()
     return driver.save_trigger(config, id)
 
 
 def get_trigger_config(slug):
-    driver = utils.get_api_driver()
+    driver = driver_factory.get_trigger_driver()
     config = driver.get_trigger_config(slug)
     return config
 
 
 def list_trigger(event=None, *args, **kwargs):
     # print(f'list_trigger:{event},{kwargs}')
-    driver = utils.get_api_driver()
+    driver = driver_factory.get_trigger_driver()
     return driver.list_trigger_config(event, *args, **kwargs)
 
 
@@ -79,6 +78,9 @@ def list_trigger_po(event=None, *args, **kwargs) -> list:
 def handle_triggers(
     request, event, id=None, old_inst=None, new_inst=None, *args, **kwargs
 ):
+    print(
+        f'handle_triggers:request={request}|event={event}|id={id}|old_inst={old_inst}|new_inst={new_inst}'
+    )
     slug = ''
     try:
         trigger_list = list_trigger_po(event, *args, **kwargs)
@@ -251,4 +253,3 @@ def run_trigger(request, trigger_po: po.TriggerActionPO, id, old_inst, new_inst)
     print(f'run_trigger:{id}')
     for action in trigger_po.triggeraction:
         run_action(action.config, id=id, old=old_inst, new=new_inst, user=request.user)
-

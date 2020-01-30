@@ -7,7 +7,9 @@ from django.conf import settings
 from django.apps import apps
 
 from django.core.management.base import BaseCommand
-from api_db.api import db_driver
+from ...driver.db_driver import driver
+
+# from api_db.api import db_driver
 
 
 class Command(BaseCommand):
@@ -24,12 +26,12 @@ class Command(BaseCommand):
         """"""
         app = kwargs.get('app')
         result = {}
-        result['api'] = self.upload_api(app)
+        result['trigger'] = self.upload_trigger(app)
         for k, d in result.items():
             print('{} 上传：{}个成功，{}个异常'.format(k, d['success_num'], d['error_num']))
 
-    def upload_api(self, app):
-        self.stdout.write('上传 api 配置...')
+    def upload_trigger(self, app):
+        self.stdout.write('上传 trigger 配置...')
         if app:
             export_apps = [app]
         else:
@@ -43,38 +45,37 @@ class Command(BaseCommand):
             try:
                 app_config = apps.get_app_config(app)
                 # module = app_config.module
-                path = app_config.module.__path__[0] + '/api_config.json'
+                path = app_config.module.__path__[0] + '/trigger_config.json'
                 if not os.path.isfile(path):
                     print(f"{app}没有API_CONFIGS")
                     continue
                 with open(path, 'r', encoding='utf-8') as f:
                     s = f.read()
-                    api_config_list = json.loads(s)
-                print(f'-------------------开始上传 app：{app} 的api配置 ------------------')
+                    trigger_config_list = json.loads(s)
+                print(f'-------------------开始上传 app：{app} 的trigger配置 ------------------')
                 slug_list = []
-                for config in api_config_list:
+                for config in trigger_config_list:
                     slug = ''
                     try:
                         slug = config['slug']
-                        is_change = db_driver.save_api(config)
+                        is_change = driver.save_trigger(config)
                         success_num += 1
                         if is_change:
                             change_num += 1
-                        # print(f'loaded api：{slug},{is_change}')
                         slug_list.append(slug)
-                    except Exception as api_error:
+                    except Exception as trigger_error:
                         error_num += 1
                         print(
-                            f'api {slug} 异常:'
-                            + str(api_error)
+                            f'trigger {slug} 异常:'
+                            + str(trigger_error)
                             + ","
                             + traceback.format_exc()
                         )
-                print(f'------------------- 上传 api 配置完成 ----------------------------')
-                print(f'上传 api {app} 配置完成:{slug_list}')
+                print(f'------------------- 上传 trigger 配置完成 ----------------------------')
+                print(f'上传 trigger {app} 配置完成:{slug_list}')
                 print()
             except Exception as e:
-                print('上传 API 异常： {}'.format(str(e)))
+                print('上传 trigger 异常： {}'.format(str(e)))
 
         # print(f'{success_num}个API上传成功，{change_num}个变更，{error_num}个API 异常')
         return {'success_num': success_num, 'error_num': error_num}

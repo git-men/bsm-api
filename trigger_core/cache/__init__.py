@@ -25,20 +25,20 @@ class BaseCache:
         pipe.delete(key)
 
 
-class ApiCache(BaseCache):
-    API_KEY = "api:slug:{}"
+class TriggerCache(BaseCache):
+    TRIGGER_KEY = "trigger:slug:{}"
 
-    def set_api_config(self, slug, api_config, pipe=None):
-        """缓存api配置"""
-        self.set_cache(self.API_KEY.format(slug), api_config, pipe)
+    def set_config(self, slug, config, pipe=None):
+        """缓存trigger配置"""
+        self.set_cache(self.TRIGGER_KEY.format(slug), config, pipe)
 
-    def get_api_config(self, slug, pipe=None):
-        """读api缓存"""
-        return self.get_cache(self.API_KEY.format(slug), pipe)
+    def get_config(self, slug, pipe=None):
+        """读trigger缓存"""
+        return self.get_cache(self.TRIGGER_KEY.format(slug), pipe)
 
-    def delete_api_config(self, slug, pipe=None):
-        """清api缓存"""
-        self.delete_cache(self.API_KEY.format(slug), pipe)
+    def delete_config(self, slug, pipe=None):
+        """清trigger缓存"""
+        self.delete_cache(self.TRIGGER_KEY.format(slug), pipe)
 
 
-api_cache = ApiCache()
+trigger_cache = TriggerCache()

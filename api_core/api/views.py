@@ -42,7 +42,6 @@ from ..signals import bsm_before_update
 from ..signals import bsm_after_update
 from ..signals import bsm_before_delete
 from ..signals import bsm_after_delete
-# from trigger_core.services import trigger_services
 from api_basebone.services import rest_services
 
 from . import api_param

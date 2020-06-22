@@ -21,7 +21,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import permissions
 
 from api_basebone.drf.response import success_response
-from api_basebone.drf.pagination import PageNumberPagination
+# from api_basebone.drf.pagination import PageNumberPagination
+from api_core.api.pagination import PageNumberPagination, local
 
 from api_basebone.restful.const import CLIENT_END_SLUG
 
@@ -869,8 +870,10 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
         self.expand_fields = self.get_config_expand_fields(api, fields)
         display_fields = [f.name for f in fields]
         self.display_fields = display_fields
-        self.pagination_class.page_size_query_param = size_query_param
-        self.pagination_class.page_query_param = page_query_param
+        # self.pagination_class.page_size_query_param = size_query_param
+        # self.pagination_class.page_query_param = page_query_param
+        local.page_size_query_param = size_query_param
+        local.page_query_param = page_query_param
         return rest_services.display(self, display_fields)
 
     def run_delete_by_condition_api(self, request, api, *args, **kwargs):

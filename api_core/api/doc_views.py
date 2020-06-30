@@ -274,13 +274,14 @@ class ApiDocViewSet(viewsets.GenericViewSet):
                 }
             }
             for method in api.method:
-                paths[f'/api/{api.slug}'] = {method: path}
+                slug = api.slug + '/' if not api.slug.endswith('/') else api.slug
+                paths[f'/api/{slug}'] = {method: path}
         return paths
 
     @action(detail=False, url_path='doc')
     def doc(self, request, *args, **kwargs):
         ''''''
-        result = {'openapi': '3.0.1', 'info': {'title': 'bsm-api', 'version': '1.0.0'}}
+        result = {'openapi': '3.0.1', 'info': {'title': '闪电数据管理API', 'version': '1.0.0'}}
         result['paths'] = self.get_paths()
         result['components'] = {}
         result['components']['schemas'] = self.get_schema()

@@ -339,7 +339,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             #     model=api.model,
             # )
 
-            old_inst = self.get_queryset().get(id=serializer.instance.id)
+            old_inst = self.get_queryset().get(pk=serializer.instance.pk)
             new_inst = serializer.instance
             validated_data = serializer.validated_data
             info = model_meta.get_field_info(new_inst)
@@ -402,7 +402,7 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             #         model=api.model,
             #     )
 
-            old_inst = self.get_queryset().get(id=instance.id)
+            old_inst = self.get_queryset().get(pk=instance.pk)
             bsm_before_delete.send(sender=ApiViewSet, apiViewSet=self, old_inst=old_inst)
 
             instance.delete()

@@ -1,28 +1,22 @@
 from django.core.cache import cache
 from django.conf import settings
 
-from api_basebone.utils.redis import redis_client
-
 
 class BaseCache:
     """缓存基础类"""
 
     def set_cache(self, key, content, pipe=None):
         key = cache.make_key(key)
-        pipe = pipe if pipe else redis_client
-        pipe.set(key, content)
         cache_time = getattr(settings, 'API_CACHE_TIME', 1 * 60)
-        pipe.expire(key, cache_time)
+        cache.set(key, content, cache_time)
 
     def get_cache(self, key, pipe=None):
         key = cache.make_key(key)
-        pipe = pipe if pipe else redis_client
-        return pipe.get(key)
+        return cache.get(key)
 
     def delete_cache(self, key, pipe=None):
         key = cache.make_key(key)
-        pipe = pipe if pipe else redis_client
-        pipe.delete(key)
+        cache.delete(key)
 
 
 class ApiCache(BaseCache):

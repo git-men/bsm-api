@@ -471,7 +471,10 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
                         raise NoSumitParameterLogic(parameter.name)
             if parameter.is_array:
                 if (value is not None) and value != '':
-                    items = json.loads(value)
+                    if isinstance(value, str):
+                        items = json.loads(value)
+                    else:
+                        items = value
                 else:
                     items = []
             else:

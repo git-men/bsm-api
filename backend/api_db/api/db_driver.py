@@ -179,7 +179,7 @@ def save_parameters(api, parameters, is_create, parent=None):
             save_parameters(api, param['children'], is_create, param_model)
         model_list.append(param_model)
 
-    if (pk_count != 1) and api.operation in (
+    if (pk_count != 1) and parent == None and api.operation in (
         const.OPERATION_RETRIEVE,
         const.OPERATION_UPDATE,
         const.OPERATION_REPLACE,

@@ -43,7 +43,7 @@ class Command(BaseCommand):
             try:
                 app_config = apps.get_app_config(app)
                 # module = app_config.module
-                path = app_config.module.__path__[0] + '/api_config.json' if app not in settings.API_CONFIG_PATH else settings.API_CONFIG_PATH[app]
+                path = app_config.module.__path__[0] + '/api_config.json' if app not in getattr(settings, 'API_CONFIG_PATH', {}) else settings.API_CONFIG_PATH[app]
                 if not os.path.isfile(path):
                     print(f"{app}没有API_CONFIGS")
                     continue

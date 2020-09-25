@@ -54,7 +54,7 @@ def load_api_js(app=None):
                 #     print('cache time' + str(delta.total_seconds()))
 
             app_config = apps.get_app_config(app)
-            path = app_config.module.__path__[0] + '/api_config.json' if app not in settings.API_CONFIG_PATH else settings.API_CONFIG_PATH[app]
+            path = app_config.module.__path__[0] + '/api_config.json' if app not in getattr(settings, 'API_CONFIG_PATH', {}) else settings.API_CONFIG_PATH[app]
             if not os.path.isfile(path):
                 # print(f"{app}没有API_CONFIGS")
                 continue

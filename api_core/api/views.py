@@ -456,10 +456,12 @@ class ApiViewSet(FormMixin, QuerySetMixin, GenericViewMixin, ModelViewSet):
             else:
                 if parameter.required:
                     log.info('api：%s,参数:%s 为必填', parameter.api.slug, parameter.name)
-                    raise exceptions.BusinessException(
-                        error_code=exceptions.PARAMETER_FORMAT_ERROR,
-                        error_data='{}参数为必填'.format(parameter.name),
-                    )
+                    from django.conf import settings
+                    if getattr(settings, 'API_STRICT_REQUIRED', True):
+                        raise exceptions.BusinessException(
+                            error_code=exceptions.PARAMETER_FORMAT_ERROR,
+                            error_data='{}参数为必填'.format(parameter.name),
+                        )
                     if parameter.use_default:
                         value = parameter.default
                     else:

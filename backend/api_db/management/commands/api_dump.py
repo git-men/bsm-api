@@ -2,11 +2,12 @@ import json
 import logging
 import traceback
 from django.conf import settings
-from django.apps import apps
 
 from django.core.management.base import BaseCommand
 
 from api_db.api.db_driver import driver
+
+from api_core.api.utils import config_path_by_app
 
 log = logging.getLogger('django')
 
@@ -44,8 +45,7 @@ class Command(BaseCommand):
         for app in export_apps:
             f = None
             try:
-                app_config = apps.get_app_config(app)
-                path = app_config.module.__path__[0] + '/api_config.json' if app not in getattr(settings, 'API_CONFIG_PATH', {}) else settings.API_CONFIG_PATH[app]
+                path = config_path_by_app(app)
                 api_list = driver.list_api_config(app)
                 if not api_list:
                     continue

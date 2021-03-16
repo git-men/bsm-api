@@ -5,6 +5,7 @@ from django.db import models
 from api_basebone.core.fields import JSONField
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import Group
+from django.conf import settings
 from api_core.api import const
 
 
@@ -200,3 +201,66 @@ class Filter(models.Model):
     class Meta:
         verbose_name = 'API的查询条件'
         verbose_name_plural = 'API的查询条件'
+
+
+class Function(models.Model):
+
+    SCENE_UNLIMIT = 'unlimit'
+    SCENE_INLINE_ACTION = 'inline'
+    SCENE_BATCH_ACTION = 'batch'
+
+    name = models.SlugField('云函数名', max_length=50)
+    model = models.CharField('数据模型', max_length=50)
+    description = models.CharField('描述', max_length=50, null=True, blank=True)
+    roles = models.ManyToManyField(Group, verbose_name='允许访问的角色', blank=True)
+    login_required = models.BooleanField('要求登录', default=True)
+    staff_required = models.BooleanField('仅限员工', default=True)
+    superuser_required = models.BooleanField('仅限超级管理员', default=False)
+    enable = models.BooleanField('启用', default=True)
+    scene = models.CharField('应用场景', choices=(
+        ('unlimit', '不限制'), ('inline', '单行操作'), ('batch', '批量操作')
+    ), default='unlimit', max_length=20)
+    code = models.TextField('代码')
+    create_time = models.DateTimeField('创建时间',auto_now_add=True)
+    create_by = models.ForeignKey(settings.AUTH_USER_MODEL, models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = '云函数'
+        verbose_name_plural = '云函数'
+        unique_together = ['model', 'name']
+    
+    class GMeta:
+        title_field = 'name'
+        creator_field = 'create_by'
+
+
+class FunctionParameter(models.Model):
+    TYPE_STRING = 'string'
+    TYPE_INT = 'integer'
+    TYPE_DECIMAL = 'decimal'
+    TYPE_BOOL = 'bool'
+    TYPE_REF = 'ref'
+    TYPE_DATE = 'date'
+    TYPE_IMAGE = 'image'
+    function = models.ForeignKey(Function, models.CASCADE, verbose_name='云函数')
+    name = models.SlugField('参数名', max_length=50)
+    display_name = models.CharField('显示名', max_length=50, blank=True, null=True)
+    type = models.CharField('类型', max_length=20, choices=(
+        (TYPE_STRING, '字符串'),
+        (TYPE_INT, '整数'),
+        (TYPE_DECIMAL, '浮点数'),
+        (TYPE_BOOL, '布尔值'),
+        (TYPE_DATE, '日期'),
+        (TYPE_REF, '数据'),
+        (TYPE_IMAGE, '图片')
+    ))
+    ref = models.CharField('模型', max_length=50, blank=True, null=True)
+    required = models.BooleanField('必填', default=True)
+    description = models.CharField('说明', max_length=1024, blank=True, null=True)
+
+    class Meta:
+        verbose_name = '云函数参数'
+        verbose_name_plural = '云函数参数'
+    
+    class GMeta:
+        title_field = 'name'

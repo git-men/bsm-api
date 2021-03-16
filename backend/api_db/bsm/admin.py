@@ -1,6 +1,52 @@
 from django.conf import settings
 from api_basebone.core.admin import BSMAdmin, register
-from api_db.models import Api
+from api_db.models import Api, Function, FunctionParameter
+
+
+@register
+class FunctionAdmin(BSMAdmin):
+    modal_form = False
+    display = ['name', 'model', 'scene', 'login_required', 'staff_required', 'superuser_required', 'enable']
+    form_fields = ['name',     
+    {'name': 'model', 'widget': 'ModelSelect'},
+    'scene', 'login_required', 'staff_required', 'superuser_required', 'roles', 'enable', 
+    'description',
+    {'name': 'code', 'widget': 'CodeEditor'}, 
+    {'name': 'functionparameter', 'widget': 'InnerTable', 'params': {'canAdd': True}}]
+    inline_actions = ['edit', 'delete']
+    form_layout = {
+        'style': 'group',
+        'sections': [
+            {
+                'title': '基本信息',
+                'fields': ['name', 'model', 'scene', 'login_required', 'staff_required', 'superuser_required', 'roles', 'enable', 'description']
+            },
+            {
+                'title': '参数',
+                'fields': ['functionparameter']
+            },
+            {
+                'title': '代码',
+                'fields': ['code']
+            }
+        ]
+    }
+
+    class Meta:
+        model = Function
+
+
+@register
+class FunctionParamAdmin(BSMAdmin):
+    form_fields = [
+        'name', 'display_name', 'type',
+        {'name': 'ref', 'widget': 'ModelSelect', 'show': '${type} === "ref"'},
+        'required', 'description'
+    ]
+    display = ['name', 'display_name', 'type', 'ref', 'required', 'description']
+
+    class Meta:
+        model = FunctionParameter
 
 
 @register

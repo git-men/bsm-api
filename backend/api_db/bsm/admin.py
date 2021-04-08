@@ -11,7 +11,7 @@ class FunctionAdmin(BSMAdmin):
     {'name': 'model', 'widget': 'ModelSelect'},
     'scene', 'login_required', 'staff_required', 'superuser_required', 'roles', 'enable', 
     'description',
-    {'name': 'code', 'widget': 'CodeEditor'}, 
+    {'name': 'code', 'widget': 'CodeEditor', 'params': {'firstLineNumber': 3}}, 
     {'name': 'functionparameter', 'widget': 'InnerTable', 'params': {'canAdd': True}}]
     inline_actions = ['edit', 'delete']
     form_layout = {

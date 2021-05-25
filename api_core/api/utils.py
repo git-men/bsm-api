@@ -1,4 +1,6 @@
 import json
+
+from django.apps import AppConfig, apps
 from django.conf import settings
 from api_basebone.core import exceptions
 
@@ -167,3 +169,8 @@ def get_api_driver() -> APIDriver:
             error_code=exceptions.PARAMETER_FORMAT_ERROR,
             error_data=f'api存储驱动参数\'API_DRIVER\'配置不正确',
         )
+
+
+def config_path_by_app(app: AppConfig):
+    app_config = apps.get_app_config(app)
+    return app_config.module.__path__[0] + '/api_config.json' if app not in getattr(settings, 'API_CONFIG_PATH', {}) else settings.API_CONFIG_PATH[app]

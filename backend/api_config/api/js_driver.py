@@ -4,11 +4,10 @@ import os
 import traceback
 from django.utils import timezone
 from django.conf import settings
-from django.apps import apps
 
 from api_basebone.core import exceptions
 
-from api_core.api.utils import APIDriver
+from api_core.api.utils import APIDriver, config_path_by_app
 
 log = logging.getLogger('django')
 
@@ -53,8 +52,7 @@ def load_api_js(app=None):
                 # else:
                 #     print('cache time' + str(delta.total_seconds()))
 
-            app_config = apps.get_app_config(app)
-            path = app_config.module.__path__[0] + '/api_config.json' if app not in getattr(settings, 'API_CONFIG_PATH', {}) else settings.API_CONFIG_PATH[app]
+            path = config_path_by_app(app)
             if not os.path.isfile(path):
                 # print(f"{app}没有API_CONFIGS")
                 continue

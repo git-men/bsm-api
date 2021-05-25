@@ -4,10 +4,11 @@ import json
 import traceback
 
 from django.conf import settings
-from django.apps import apps
 
 from django.core.management.base import BaseCommand
 from api_db.api import db_driver
+
+from api_core.api.utils import config_path_by_app
 
 
 class Command(BaseCommand):
@@ -41,9 +42,7 @@ class Command(BaseCommand):
         change_num = 0
         for app in export_apps:
             try:
-                app_config = apps.get_app_config(app)
-                # module = app_config.module
-                path = app_config.module.__path__[0] + '/api_config.json' if app not in getattr(settings, 'API_CONFIG_PATH', {}) else settings.API_CONFIG_PATH[app]
+                path = config_path_by_app(app)
                 if not os.path.isfile(path):
                     print(f"{app}没有API_CONFIGS")
                     continue

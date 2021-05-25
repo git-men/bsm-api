@@ -8,19 +8,25 @@ class APIAdmin(BSMAdmin):
     modal_form = False
     form_fields = ['operation']
     display = ['id', 'operation', 'slug', 'name']
-    inline_actions = [
-        'edit', 'delete',
-        {
-            'type': 'info',
-            'title': '请求地址',
-            'params': {'title': '查看请求地址', 'content': settings.API_BASE_URL + '/${slug}/'},
-        },
-        {
-            'type': 'link',
-            'title': '查看文档',
-            'params': {'link': settings.API_DOC_BASE_URL + '/#/default/${slug}'},
-        },
-    ]
+
+    @property
+    def inline_actions(self):
+        api_base_url = getattr(settings, 'API_BASE_URL', self.request.build_absolute_uri('/api'))
+        api_doc_base_url = getattr(settings, 'API_DOC_BASE_URL', self.request.build_absolute_uri('/api_doc/help'))
+        return [
+            'edit', 'delete',
+            {
+                'type': 'info',
+                'title': '请求地址',
+                'params': {'title': '查看请求地址', 'content': api_base_url + '/${slug}/'},
+            },
+            {
+                'type': 'link',
+                'title': '查看文档',
+                'params': {'link': api_doc_base_url + '/#/default/${slug}'},
+            },
+        ]
+
     table_actions = [
         {
             'icon': 'plus',
